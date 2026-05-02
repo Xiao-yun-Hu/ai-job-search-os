@@ -1,44 +1,134 @@
-# AI 求职操作系统 (AI Job Search OS)
+# AI Job Search OS
 
-> 面向 AI / Applied AI / Solutions 岗位的可度量转化漏斗求职系统。为 **offer 转化率**优化，不是为投递量。
+> **一个用 AI 提高求职 offer 转化率的操作系统：从岗位搜集、简历解析、匹配筛选、申请策略，到转化漏斗追踪和周度优化。**
 
 [English README →](./README.md)
 
 ---
 
-## 核心论点
+市面上大多数求职工具帮候选人**找更多岗位**或**生成更多简历**。
 
-求职不是随机投递的体力活。它是一个**可度量的转化漏斗**：
+**AI Job Search OS 关注一个不同的问题：**
 
-```
-市场 → 候选人 → 匹配 → 策略 → 行动 → 漏斗 → 记忆
-```
+> **如何系统性地提高拿到高质量 offer 的概率？**
 
-每一层都可以诊断。每一次转化都可以测量。大多数"改进建议"是**把 reward 信号用错了层** —— 比如 "0 回复 → 降级这个 role type"（当 n=2 时）。这个系统严格分离 **Match**（决策前的战略判断）和 **Reward**（决策后的市场反馈），让 noisy outcome 不破坏战略选择。
+它支持完整的求职闭环：
 
-**目标**：在限定时间内最大化获得 **vibe 匹配 + 岗位形态 fit** 的 offer 概率。不是最大化投递数量。
+1. 收集岗位和公司数据
+2. 解析候选人画像和简历
+3. 匹配 候选人 × 岗位 × 公司 的 fit
+4. 优先级排序：哪些机会值得打
+5. 生成投递和 outreach 策略
+6. 跟踪漏斗推进状态
+7. 从结果学习，迭代下一轮
 
-## 这个系统是什么
+核心理念很简单：
 
-- 一份**系统架构**，给你设计自己的求职基础设施（含模板）
-- 一个**决策框架**（Match Function v0），把机会用 rubric 分到 Tier A/B/C/D，不用 78.3 分这种伪精确
-- 一个**记忆架构**（5 类：identity / decision / feedback / project / meta），含自动归档机制
-- 一组**定时任务模板**（晨间投递、晚间复盘、每日学习、周度总结、LinkedIn outreach），适用于 [Claude Code](https://claude.ai/code) 或类似 agent runtime
-- 一份**反模式 playbook** —— 这个系统明确避免的事（伪精确 reward、静默降 tier、把 observable funnel 当 true funnel）
+> **求职不是体力活。它是一个转化率优化问题。**
 
-## 这个系统不是什么
-
-- 不是 job-board 爬虫或自动投递垃圾工具
-- 不是推荐引擎（v0 不上 ML —— sample size 还远不够）
-- 不是 one-size-fits-all 模板（你必须填自己的 narrative pillars / 目标公司 / 硬约束）
-- 不是 SaaS 产品 —— 用你自己的 AI agent 在本地跑
+---
 
 ## 适合谁
 
-- **AI / Applied AI / Solutions** 候选人，5+ 年经验，有明确的 narrative
-- 想做**系统化、可度量**求职而不是"广撒网赌概率"的人
-- 用 [Claude Code](https://claude.ai/code) 或类似 agent runtime，想要**持久记忆 + 定时自动化**的人
-- 做**3 个月聚焦型求职**且当前已有稳定职位的人（不是 desperate，承担得起"对的下一步"的取舍）
+这个系统适合：
+
+- **应届毕业生** —— 找到现实可行的入口路径
+- **转行者** —— 重新定位自己
+- **中职业生涯专业人士** —— 寻找更匹配的下一份工作
+- **资深候选人** —— 不想浪费时间在低 fit 机会上
+- **任何人** —— 想把求职当作可度量漏斗而不是随机投递的人
+
+特别适合**横跨多个岗位、公司或地区**投递时，需要结构化决策：
+
+- 哪些岗位值得投
+- 哪些公司值得直接 outreach
+- 哪些投递在浪费时间
+- 漏斗哪一段在断
+- 下周该改什么
+
+## 这个系统是什么
+
+AI Job Search OS 是一个**本地的、agent 驱动的求职管理工作流**。
+
+它帮候选人：
+
+- 用简历、经历、技能、偏好、约束**构建结构化 candidate profile**
+- 从 job board / 公司页 / 手动导入的 JD **收集和解析岗位机会**
+- 用 rule-based Match Function 把每个机会分到 **A/B/C/D 档**
+- 给每个机会决定**最佳行动**：跳过 / 保留 / 投递 / 投递+DM / 内推 / 创始人 outreach
+- 通过**漏斗**跟踪每个机会：发掘 → 投递 → 已读 → 回复 → 面试 → offer
+- 复盘**每周转化率**，根据真实结果更新策略
+
+系统设计用于 [Claude Code](https://claude.ai/code) 或类似 agent runtime，但架构可以适配任何 AI 助手。
+
+## 这个系统不是什么
+
+- ❌ 不是自动投递垃圾工具
+- ❌ 不是通用 job board 爬虫
+- ❌ 不是简历关键词堆砌工具
+- ❌ 不是黑盒推荐引擎
+- ❌ 不是承诺 offer 的系统
+
+它**不**替代人的判断。
+
+它通过**结构化流程、降噪、从漏斗结果学习**，帮候选人做更好的求职决策。
+
+## 系统架构
+
+```mermaid
+flowchart LR
+    A[岗位 & 公司数据] --> C[Match Function]
+    B[候选人画像] --> C
+    C --> D[行动策略]
+    D --> E[投递 / Outreach]
+    E --> F[漏斗跟踪]
+    F --> G[周度学习闭环]
+    G -.-> C
+    G -.-> D
+```
+
+| 层 | 回答的问题 |
+|---|---|
+| **岗位 & 公司数据** | 有哪些机会? |
+| **候选人画像** | 候选人是谁，想要什么? |
+| **Match Function** | 哪些岗位值得追? |
+| **行动策略** | 这个机会怎么打? |
+| **漏斗跟踪** | 行动后发生了什么? |
+| **学习闭环** | 下周该改什么? |
+
+完整架构详见 [`docs/SYSTEM.md`](./docs/SYSTEM.md)。
+
+## 它和其他工具有什么不同
+
+大多数 AI 求职工具优化**速度**：
+
+- 爬更多岗位
+- 生成更多简历
+- 提交更多投递
+
+AI Job Search OS 优化**转化质量**：
+
+- 更少的低 fit 投递
+- 更清晰的机会优先级
+- 更好的 outreach 决策
+- 可度量的漏斗诊断
+- 基于真实结果的周度策略更新
+
+目标**不是**：
+
+> "投 500 份简历。"
+
+目标是：
+
+> **"搞清楚哪 30 个岗位真正值得打，提高它们转化为面试和 offer 的概率。"**
+
+### 5 个你在别处看不到的设计原则
+
+1. **Match ≠ Reward 分离** —— 决策前的战略判断**不**因决策后的 noisy 反馈而修改，直到累积 ≥ 100 outcome 数据点
+2. **v0 阶段用 Rubric 而非 Formula** —— 不要 `+10 / -5` 这种伪精确分数；用 ordinal Tier + 漏斗 stage
+3. **User-in-the-Loop tier 调整** —— Match 出现 ≥ 3 个 unknown signal，先问用户；永不静默降级
+4. **Observable funnel ≠ true funnel** —— 默认信任用户；线下处理的 inbound 不算 cost
+5. **记忆自动维护** —— 5 类 taxonomy + 周日自动归档；不要 over-engineer metadata
 
 ## Quick Start
 
@@ -48,7 +138,7 @@ git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
 cd ai-job-search-os
 
 # 2. 读系统文档
-open docs/SYSTEM.md       # 架构、决策逻辑、记忆设计
+open docs/SYSTEM.md       # 完整架构、决策逻辑、记忆设计
 
 # 3. 建你自己的项目目录
 mkdir -p ~/job-search/{logs,research,memory,system}
@@ -69,129 +159,90 @@ cp templates/scheduled-tasks/*.template.md ~/.claude/scheduled-tasks/
 # 打开 Claude Code，问："读 SYSTEM.md，给这个 JD 跑一遍 Match Function: [贴 JD]"
 ```
 
-## 架构 (TL;DR)
+## 样例输出
 
-```mermaid
-flowchart LR
-    M[市场层] --> Match[匹配层]
-    C[候选人层] --> Match
-    Match --> S[策略层]
-    S --> ACT[行动: Apply / DM / Outreach]
-    ACT --> F[漏斗层]
-    F --> Memo[记忆与学习]
-    Memo -.规则更新.-> M
-    Memo -.规则更新.-> Match
-    Memo -.规则更新.-> S
-```
+在 [`examples/`](./examples/) 里有 anonymized 样例：
 
-| 层 | 用途 | 输出 |
-|---|---|---|
-| **市场层** | 识别机会区域、目标清单 | Tiered 公司清单 + vibe 调研 |
-| **候选人层** | 结构化 profile（5 大 narrative pillar + 约束） | `project_candidate_profile.md` |
-| **匹配层** | 给 (JD × 公司) 打 fit → Tier A/B/C/D | Match Function v0 (rule-based, ordinal) |
-| **策略层** | 决定每个 Tier 怎么打 | Apply / DM / outreach / 保留 / 跳过 |
-| **漏斗层** | 跟踪 ordinal stage 推进 | sent < read < reply < deep_chat < interview < offer |
-| **记忆层** | 日 / 周 aggregation，反向修正前面层 | 5 类 taxonomy + 自动归档 |
+- [`sample-morning-report.md`](./examples/sample-morning-report.md) —— 每日早间任务输出：95 个原始岗位 → hard gates → cardinal scoring → Match Function → 投出 5 条（Tier A:2 / B:3）+ 2 条保留 + 1 条 pending + 2 条跳过
+- [`sample-retro.md`](./examples/sample-retro.md) —— 每日 retro，含漏斗 stage 跟踪和 Match-Reward 分离的优化
+- [`sample-weekly.md`](./examples/sample-weekly.md) —— 周度总结，含 bottleneck identification 和下周实验设计
 
 ## 目录结构
 
 ```
 ai-job-search-os/
 ├── docs/
-│   └── SYSTEM.md              # 完整架构 + 决策逻辑
+│   └── SYSTEM.md              # 完整架构 + 决策逻辑 + 记忆设计
 ├── templates/
 │   ├── config.yaml.template
-│   ├── memory/                # 5 类 memory 模板
-│   │   ├── MEMORY.template.md
-│   │   ├── user_*.template.md
-│   │   ├── decision_*.template.md
-│   │   ├── feedback_*.template.md
-│   │   ├── project_*.template.md
-│   │   └── memory_management_rules.template.md
-│   └── scheduled-tasks/       # Cron 驱动的任务定义
-│       ├── job-board-morning-outreach.template.md
-│       ├── evening-retro.template.md
-│       ├── daily-learnings-review.template.md
-│       ├── weekly-summary.template.md
-│       └── linkedin-outreach.template.md
-├── examples/
-│   └── anonymized-run.md      # 样例 retro / morning 报告（无 PII）
+│   ├── memory/                # 5 类 memory taxonomy 模板（12 个文件）
+│   └── scheduled-tasks/       # Cron 驱动的任务定义（5 个文件）
+├── examples/                  # Anonymized 样例输出（3 个文件）
 ├── LICENSE                    # MIT
-└── README.md / README_CN.md
+├── README.md / README_CN.md   # 双语入口
+└── STATUS.md                  # Build log
 ```
-
-## 核心设计原则
-
-### 1. Match ≠ Reward
-
-整个系统**最重要的规则**。**Match**（决策前的战略判断）**不**因为 **Reward**（决策后的市场反馈）而修改，**直到累积 ≥100 outcome 数据点**。否则一个 n=2 的样本会让你降级一个其实没问题的 role type —— 战略指南针就废了。
-
-### 2. v0 阶段：Rubric > Formula
-
-不要 78.3/5 或 `+10 / -5` 这种伪精确 reward weights。用：
-- **Hard gates**（地理 / 角色 / 薪资 / 文化）—— boolean
-- **Tier A/B/C/D** 分类 —— ordinal
-- **漏斗 stage**（sent < read < reply < deep_chat < interview < offer）—— ordinal
-- **每周经验性提问** —— 用 (count, ratio) 回答，不是"reward 提升 X 分"
-
-数字 weight 只有在 sample ≥100 / replies ≥20 / interviews ≥5 之后才能进入。
-
-### 3. User-in-the-Loop Tier 调整
-
-当 Match 出现 ≥3 个 unknown signal 时，**不要静默降级**。两种处理：
-- 直接问用户（interactive session）
-- 排队成 `pending_user_input`（autonomous task）
-- 用户 48 小时不回应才静默降一档（写 reason）
-
-### 4. Observable Funnel ≠ True Funnel
-
-大多数自动化只看见自己 log 的东西。**默认信任用户** —— 表面上"未回复"的 inbound 默认假设已线下处理（电话、DM、邮件、面对面），除非用户主动说"我 miss 了"。这避免系统因自己看不到而 penalize 用户。
-
-### 5. 记忆有自动维护
-
-5 类 taxonomy + 极简 frontmatter（3 字段）+ 周日自动归档 + 月度规则审计。v0 阶段不要 `importance / last_referenced / expires_at / links` 这种 over-engineer —— 它们是研究论文里的概念，在 ~50 个 memory 文件以下不产生价值。
 
 ## 定制指南
 
-完整架构见 [`docs/SYSTEM.md`](./docs/SYSTEM.md)。核心填写位置：
+你需要填的核心位置：
 
 | 要填什么 | 在哪填 |
 |---|---|
 | 5 大 narrative pillar（你的核心故事） | `memory/project_candidate_profile.md` |
 | 硬约束（地理 / 薪资 / role 类型） | `memory/decision_*.md` 各文件 |
-| 目标公司清单 | `memory/project_target_companies.md`（索引指向完整清单文件） |
+| 目标公司清单 | `memory/project_target_companies.md` |
 | 搜索关键词 | `config.yaml` `search.keywords` |
 | 投递消息 | `config.yaml` `outreach.message` |
 | Job board 抓取逻辑 | `templates/scheduled-tasks/job-board-morning-outreach.template.md`（Phase 1 / 3） |
 
-## 例子
+## Roadmap
 
-`examples/` 里有 anonymized 样例：
-- 一份带 Match tier 分类的早间报告
-- 一份带漏斗 stage 跟踪的当日 retro
-- 一份周度总结含 bottleneck identification
+**v1.0（当前）** —— 系统架构 + 模板 + Claude Code 集成。通用浏览器自动化模式的 job-board outreach。
 
-## 为什么有这个系统
+**v1.1 计划中**：
+- Job board adapters：LinkedIn Easy Apply, SEEK, Indeed, Greenhouse-public
+- 简历解析 pipeline（PDF/DOCX → 结构化 candidate profile）
+- 更完整的样例（1-2 份完整 anonymized 端到端运行）
 
-大多数"AI for 求职"工具是聚合器（垃圾自动投递）或 chatbot 改简历的。它们不解决 senior 候选人真正的瓶颈：**战略 targeting + 可度量的迭代**。
+**v2.0 想法**：
+- 累积 ≥ 100 数据点后引入条件概率估计（从 heuristic 过渡到 learned）
+- 漏斗可视化 dashboard
+- 多地区 outreach 规则（按地区分的 LinkedIn DM 模板）
+- 社区贡献的 Match rubric marketplace（按 role family 分）
 
-这个 repo 来自一个候选人正在用的工作系统 —— 每天跑、根据真实漏斗证据演化。MIT license 开源给任何想用这套框架的人。
+开 issue 提优先级或贡献 adapter。
+
+## 起源
+
+这个 repo 源于一个候选人正在用的工作系统 —— 每天跑、根据真实漏斗证据演化。最初的用例是 Applied AI / Solutions Architect 候选人在 BOSS 直聘、LinkedIn、直接 outreach 这些渠道并行做国内+海外求职。
+
+但**架构本身不限于 AI 岗位**。5 类 memory taxonomy、Match Function rubric、ordinal 漏斗 stage、Match-Reward 分离原则适用于任何符合下面条件的求职：
+
+- 总目标清单是有限的（50-500 家公司）
+- 候选人有明确的 narrative（3-5 个核心 proof-of-work 故事）
+- 结果需要被度量以改善下周策略
+
+MIT license 开源给任何想用这套框架的人。本 repo 中所有样例都是 anonymized 的。
 
 ## 贡献
 
 开 issue 或 PR。特别欢迎：
+
 - 其他 job board 的 adapter（当前 morning-outreach 模板假设通用浏览器自动化）
-- 真实运行的 anonymized 样例
+- anonymized 真实运行样例
 - 记忆设计改进
 - 漏斗转化率的实证数据（带 sample size）
+- EN / CN 之外的翻译
 
 ## License
 
 MIT —— 见 [LICENSE](./LICENSE)。
 
-## 参考
+## Acknowledgments
 
 架构参考：
+
 - [CoALA: Cognitive Architectures for Language Agents](https://arxiv.org/abs/2309.02427) —— 5 类 memory taxonomy
 - [Generative Agents (Park et al, 2023)](https://arxiv.org/abs/2304.03442) —— reflection-based 记忆压缩（light 版）
 - [Letta benchmarks: "Filesystem is all you need"](https://www.letta.com/blog/benchmarking-ai-agent-memory) —— 验证 file-based 在这个 scale 下足够
