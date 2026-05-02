@@ -1,0 +1,116 @@
+---
+name: candidate profile snapshot
+description: Complete candidate state — resume facts + compensation expectations + geographic constraints + narrative pillars + vibe>money decision priority
+type: project
+---
+
+> **Source of truth (SSOT)**: All candidate facts live here. Don't duplicate in feedback / decision files — they reference this.
+> **Resume file**: `[/path/to/main/resume.pdf]`
+> **Update cadence**: when user explicitly says so. Identity rarely changes; preferences monthly review.
+
+## Basic Info
+
+- Name: [Full name]
+- Contact: [Email] / [Phone]
+- Years experience: [N]+
+- Current location: [City]
+- Education:
+  - Master's: [University, degree, years]
+  - Bachelor's: [University, degree, years]
+- Resume target city: [City] (resume default; actual acceptable list in geographic preferences below)
+- Job-search direction: [e.g., AI Product Architect / AI Systems / Applied AI / AI Solutions]
+
+## Career Timeline
+
+| Period | Company | Role | Key outputs |
+|---|---|---|---|
+| YYYY.MM-YYYY.MM | [Current Company] | [Title] | [1-line summary of flagship project] |
+| YYYY.MM-YYYY.MM | [Prev Company] | [Title] | [1-line key outputs / metrics] |
+| ... | ... | ... | ... |
+
+## Narrative Pillars (3-5 core stories — repeat across resume / outreach / interview)
+
+### Pillar 1: [Claim, e.g., "Compressed end-to-end research from weeks to 1 day"]
+- Number: [Multiplier or specific impact, e.g., 20× efficiency]
+- Use case: [When in resume / outreach / interview to deploy this]
+- TODO: client case STAR story (Situation / Task / Action / Result)
+
+### Pillar 2: [Scale leverage, e.g., "10× analysis coverage without headcount increase"]
+### Pillar 3: [Quality gating, e.g., "Production eval system: ≥95% accuracy, <2% hallucination"]
+### Pillar 4: [Framework reuse, e.g., "Compressed dev cycle 3 months → 1 week"]
+### Pillar 5: [Technical depth, e.g., "4-layer reasoning architecture with causal grounding"]
+
+## Compensation Expectations (by region)
+
+| Region | Floor (monthly or annual) | Ceiling (annual) | Note |
+|---|---|---|---|
+| [Home country] | [BOSS monthly K] | [Annual range with #-month bonus] | [Source / past offers] |
+| [Region 2, e.g., SG/HK] | [—] | [Equivalent] | [—] |
+| [Region 3, e.g., US] | [—] | [USD] | [—] |
+
+> ⚠️ **Decision priority: vibe > money**. Compensation is a satisficing constraint (must hit floor), not a maximizing goal. Strong vibe match worth slight comp cut; weak vibe never accepted regardless of comp.
+
+## Geographic Disqualifiers (hard constraint)
+
+### [Home country]
+- ✅ Accept: [List of accepted cities]
+- ❌ Reject: All other cities
+
+### Overseas
+- ✅ Priority: [List of priority regions]
+- See `feedback_target_strategy.md` for additional preferences (e.g., founder background, parent-company affinity)
+
+## Decision Priority (Vibe > Money)
+
+> User stated [date]: "I'm OK on money. The main thing is whether the team's vibe and taste match mine."
+
+**Why**: Candidate already has stable position. Not a desperate seeker. Selection criterion is "the right next step", not "any offer".
+
+**How to apply**:
+1. When evaluating offers, **first** check team vibe (founder character / tech depth / customer focus / reflection capability), **then** comp.
+2. Don't push offers where vibe ≤ 3 even if comp is excellent.
+3. Accept threshold: vibe ≥ 4.5 with comp slightly below ceiling is preferable to vibe 3 with comp at ceiling.
+4. In comp negotiation, settle for mid-range. Don't push to ceiling at the cost of relationship.
+
+## Known Narrative Gaps (TODO)
+
+> What you know but haven't yet articulated as STAR stories:
+
+- [ ] Pillar 1 specific client case
+- [ ] Pillar 2 ...
+- [ ] etc.
+
+Action: Schedule a "narrative deep dive" session to fill these in.
+
+## Job-Position Targeting
+
+### Preferred (matches narrative pillars)
+- [Title 1]
+- [Title 2]
+- ...
+
+### Acceptable with caveats
+- [Title 1, conditional on JD review]
+
+### Rejected (hard filter)
+- ❌ [Pure / generic / off-target titles]
+- ❌ [Method-mismatch types, e.g., model training when you're applied-AI]
+
+## Resume Version Management
+
+| File | Use | Status |
+|---|---|---|
+| [main resume PDF path] | Primary applications | Main version |
+| [region-specific PDF path] | Specific outreach | Variant |
+| [English version path] | Overseas cold outreach | TODO if missing |
+| ... historical versions | Archive | Don't maintain |
+
+## Relationship to other memory files
+
+- `feedback_target_strategy.md` — strategic preferences (where to target, why)
+- `feedback_parallel_outreach.md` — execution rhythm
+- `decision_salary_floor.md` — hard salary filter applied at job filtering
+- `decision_geographic_filter.md` — hard geographic filter
+- `project_target_companies.md` — concrete company list (Tiered)
+
+This file is the **identity SSOT**. All candidate facts referenced elsewhere should point here.

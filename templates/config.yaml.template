@@ -1,0 +1,95 @@
+# AI Job Search OS — Config Template
+# Copy to your project root as `config.yaml`. Fill in [PLACEHOLDERS].
+# All numeric weights in this file are HEURISTIC CONFIG, NOT a model — see SYSTEM.md Section 4.7.
+
+# ---------------------------------------------------------------------------
+# search: How morning task discovers candidates
+# ---------------------------------------------------------------------------
+search:
+  keywords:
+    # Order matters — first ones get top priority
+    # Comment each entry with rationale + last-modified date for audit
+    - "[Primary keyword 1]"     # e.g., "AI Solutions Architect" — added YYYY-MM-DD: highest historical relevance
+    - "[Primary keyword 2]"     # e.g., "Applied AI Lead"
+    - "[Secondary keyword 3]"
+    - "[Exploration keyword 4]"  # added YYYY-MM-DD: market signal X
+  city: [CITY_CODE]              # job board's city code, or 0 for nationwide
+  scales:                        # company size filters — adapt to job board's encoding
+    - [SCALE_CODE_1]
+    - [SCALE_CODE_2]
+  stage_filter: none             # job board's funding-stage filter (or "none" if filtering manually)
+
+# ---------------------------------------------------------------------------
+# filters: Hard gates applied before scoring
+# ---------------------------------------------------------------------------
+filters:
+  experience_min: [N]            # min years of experience required by JD
+  block_stages:                  # funding stages to skip
+    - "Angel"
+    - "Seed"
+    - "Pre-A"
+  block_categories:              # role-direction blacklist
+    - "outsourcing"
+    - "staffing"
+    - "[your hard nos here]"
+  block_titles_keywords:         # title keywords to skip
+    - "Partner"
+    - "CTO"
+    - "Chief"
+    - "Co-founder"
+  block_companies_anon:          # patterns indicating anonymous postings
+    - "[some anon string]"
+  blacklist_file: company_blacklist.json
+
+# ---------------------------------------------------------------------------
+# jd_scoring: Cardinal feature detection at INPUT (deterministic, OK)
+# Threshold determines whether JD passes basic scoring → enters Match Function
+# ---------------------------------------------------------------------------
+jd_scoring:
+  threshold: 7                   # JDs with score below this are skipped before Match
+  dimensions:
+    # Adjust these to match candidate's narrative pillars
+    multi_agent_mention: +2      # JD mentions multi-agent / Multi-Agent / agent collaboration
+    llm_rag_mention: +1.5        # LLM / RAG / Function Calling
+    eval_framework: +1.5         # evaluation / Eval / A/B
+    causal_reasoning: +1.5       # causal / inference / traceable
+    knowledge_graph: +1
+    agent_orchestration: +2      # agent orchestration / workflow
+    experience_5plus: +1
+    overseas_founder: +1         # founder background match
+    flexible_work: +0.5
+    multimodal: +0.5
+  red_flags:                     # auto-reject (massive negative)
+    outsourcing_mention: -100
+    gender_requirement: -100
+
+# ---------------------------------------------------------------------------
+# outreach: Sender behavior
+# ---------------------------------------------------------------------------
+outreach:
+  daily_cap: [N]                 # max applications per day (e.g., 30)
+  flow:
+    - "[platform-specific step 1]"
+    - "[platform-specific step 2]"
+  message: |
+    [YOUR CUSTOM OUTREACH MESSAGE — adapt to candidate's narrative pillars]
+    [Should reference 1-2 specific Pillars + 1 outcome / metric + clear ask]
+    [Keep ≤300 chars for short-form platforms]
+
+# ---------------------------------------------------------------------------
+# safety: Reliability rules
+# ---------------------------------------------------------------------------
+safety:
+  never_use_os_keystrokes: true  # don't use OS-level type/key actions
+  pause_on_risk_control: 4h      # pause for X hours on encountering anti-bot
+  abort_on_chrome_disconnect: true
+  verify_send_via_screenshot: true
+
+# ---------------------------------------------------------------------------
+# output: File paths
+# ---------------------------------------------------------------------------
+output:
+  applications_log: "[/path/to]/applications.jsonl"
+  daily_report: "[/path/to]/logs/daily_{YYYYMMDD}.md"
+  notify_on_phone: true
+  end_of_run_report: true

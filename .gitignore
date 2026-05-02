@@ -1,0 +1,45 @@
+# Personal data — NEVER commit
+applications.jsonl
+applications-*.jsonl
+*.private.md
+*.local.json
+.env
+.env.local
+.env.*.local
+
+# Resume / portfolio files (user-specific)
+resumes/
+*.pdf
+*.docx
+*.doc
+
+# Logs / runtime artifacts
+logs/
+!logs/.gitkeep
+research/
+!research/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Node
+node_modules/
+
+# Claude Code session artifacts (per-user, never commit)
+.claude/settings.local.json
+.claude/projects/
+
+# Derived files
+*.log
