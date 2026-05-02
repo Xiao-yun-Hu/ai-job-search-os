@@ -130,7 +130,19 @@ AI Job Search OS 优化**转化质量**：
 4. **Observable funnel ≠ true funnel** —— 默认信任用户；线下处理的 inbound 不算 cost
 5. **记忆自动维护** —— 5 类 taxonomy + 周日自动归档；不要 over-engineer metadata
 
-## Quick Start
+## 用 AI agent 跑（推荐）
+
+大多数用户会通过 AI agent（Claude Code / Cursor 等）使用这个系统，而不是自己读 docs。
+
+如果是这样，clone 后告诉你的 agent：
+
+> **"读 AGENTS.md，给我做 onboarding"**
+
+Agent 会带你走完 ~50 分钟的 setup —— 诊断你的情况、建 candidate profile、calibrate Match Function —— **再开始任何自动化**。**不要跳过 templates/ 直接跑**，系统需要你先提供输入。
+
+完整 agent onboarding 流程见 [AGENTS.md](./AGENTS.md)。
+
+## Quick Start（手动，不用 agent）
 
 ```bash
 # 1. Clone
@@ -171,6 +183,7 @@ cp templates/scheduled-tasks/*.template.md ~/.claude/scheduled-tasks/
 
 ```
 ai-job-search-os/
+├── AGENTS.md                  # AI agent 的 onboarding 指引（agent 第一个该读的文件）
 ├── docs/
 │   └── SYSTEM.md              # 完整架构 + 决策逻辑 + 记忆设计
 ├── templates/
@@ -179,7 +192,7 @@ ai-job-search-os/
 │   └── scheduled-tasks/       # Cron 驱动的任务定义（5 个文件）
 ├── examples/                  # Anonymized 样例输出（3 个文件）
 ├── LICENSE                    # MIT
-├── README.md / README_CN.md   # 双语入口
+├── README.md / README_CN.md   # 双语入口（本文）
 └── STATUS.md                  # Build log
 ```
 

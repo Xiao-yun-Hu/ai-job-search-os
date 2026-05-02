@@ -25,6 +25,18 @@ README repositioning per maintainer feedback.
 - Added Roadmap (v1.0 / v1.1 / v2.0)
 - Moved AI-specialist origin story to bottom section
 
+### v1.0.2 — 2026-05-03
+Agent onboarding flow added.
+
+- New `AGENTS.md` at repo root — 5-stage onboarding flow (~50 min) for AI agents helping users
+  - Stage 1: Diagnose (career stage, geography, urgency, materials, comp, vibe>money)
+  - Stage 2: Setup (candidate profile, target list, hard gates, decision memory)
+  - Stage 3: Calibrate Match Function (compare Tier output to user intuition)
+  - Stage 4: First run (manual review before auto-deploy)
+  - Stage 5: Schedule deployment
+- README adds "Using with an AI Agent" section pointing to AGENTS.md
+- Closes UX gap: previously agents would skip onboarding and run morning task with empty config
+
 ## Stats
 
 | Metric | Value |

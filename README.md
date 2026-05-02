@@ -130,7 +130,19 @@ The goal is:
 4. **Observable funnel ≠ true funnel** — default trust user; offline-handled inbound is not penalized
 5. **Memory has auto-maintenance** — 5-type taxonomy + Sunday auto-archival; no over-engineered metadata
 
-## Quick Start
+## Using with an AI Agent
+
+Most users will run this through an AI agent (Claude Code, Cursor, etc.) rather than reading the docs themselves.
+
+If that's you, just clone and tell your agent:
+
+> **"Read AGENTS.md and onboard me."**
+
+The agent will walk you through ~50 minutes of setup — diagnosing your situation, building your candidate profile, calibrating the Match Function — before any automation runs. **Don't skip to `templates/`. The system needs your inputs first.**
+
+See [AGENTS.md](./AGENTS.md) for the full agent-onboarding flow.
+
+## Quick Start (manual, without an agent)
 
 ```bash
 # 1. Clone
@@ -171,6 +183,7 @@ See [`examples/`](./examples/) for anonymized samples:
 
 ```
 ai-job-search-os/
+├── AGENTS.md                  # Onboarding flow for AI agents (read this first if you're an agent)
 ├── docs/
 │   └── SYSTEM.md              # Full architecture + decision logic + memory design
 ├── templates/
@@ -179,7 +192,7 @@ ai-job-search-os/
 │   └── scheduled-tasks/       # Cron-driven task definitions (5 files)
 ├── examples/                  # Anonymized sample outputs (3 files)
 ├── LICENSE                    # MIT
-├── README.md / README_CN.md   # Bilingual entry
+├── README.md / README_CN.md   # Bilingual entry (this file)
 └── STATUS.md                  # Build log
 ```
 
