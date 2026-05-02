@@ -1,32 +1,44 @@
-# OSS Build Status
+# Build Status — v1.0 SHIPPED ✅
 
-> Live status file. Updated at each milestone.
+**Repo**: https://github.com/Xiao-yun-Hu/ai-job-search-os
+**License**: MIT (public)
 
-## Current Phase
-**Phase 9/9: Push to GitHub** ⏳
+## Release log
 
-## Timeline
-- 2026-05-02 — kickoff + 8 phases complete
+### v1.0 — 2026-05-02 (commit `f448e09`)
+Initial release. 27 files, 2768 lines.
 
-## Milestones
+- 6-layer system architecture (`docs/SYSTEM.md`)
+- 12 memory templates (5-type taxonomy)
+- 5 scheduled task templates
+- `config.yaml.template`
+- 3 anonymized example outputs
+- Bilingual README
 
-- [x] **1. Init repo skeleton** — git init, dir structure, LICENSE (MIT), .gitignore, STATUS.md
-- [x] **2. docs/SYSTEM.md** — full architecture, decision logic, memory design, 11 sections + 4 mermaid diagrams (~700 lines anonymized)
-- [x] **3. Memory templates** — 12 files: MEMORY index, user, decision (4), feedback (3), project (2), memory_management_rules
-- [x] **4. Scheduled task templates** — 5 files: morning-outreach, evening-retro, daily-learnings, weekly-summary, linkedin-outreach
-- [x] **5. config.yaml.template** — full config with placeholders + heuristic disclaimers
-- [x] **6. README.md (English)** — quick start, architecture, design principles, customization guide
-- [x] **7. README_CN.md (Chinese)** — full Chinese parallel
-- [x] **8. examples/** — 3 anonymized samples: morning-report, retro, weekly-summary
-- [ ] **9. First commit + gh repo create + push** — IN PROGRESS
+### v1.0.1 — 2026-05-03 (commit `87095d8`)
+README repositioning per maintainer feedback.
 
-## Blockers
-None.
+- Generalized positioning from "AI / Applied AI / Solutions" specialist to universal job-search OS
+- New subtitle: "An AI-powered operating system for improving job-search conversion rates"
+- Broadened "Who Is This For": fresh grads / career switchers / mid-career / senior
+- Added "What Makes This Different" section
+- Added Roadmap (v1.0 / v1.1 / v2.0)
+- Moved AI-specialist origin story to bottom section
 
 ## Stats
-- ~25 files written
-- ~5000 lines total (mostly docs)
-- 0 PII leaks expected (template-based, scrub-safe)
 
-## Repo will be at
-`https://github.com/Xiao-yun-Hu/ai-job-search-os` (public, MIT)
+| Metric | Value |
+|---|---|
+| Files | 27 |
+| Lines | ~3000 |
+| PII leaks | 0 (verified) |
+| Languages | EN + CN |
+| License | MIT |
+
+## Suggested next steps (optional, for v1.1+)
+
+- `gh repo edit Xiao-yun-Hu/ai-job-search-os --add-topic ai-agents,job-search,claude-code,career-tools`
+- `gh release create v1.0.1` to tag the repositioning
+- Pin to GitHub profile
+- Announcement post on LinkedIn / X
+- v1.1 work: job-board adapters (LinkedIn / SEEK / Indeed), resume parsing pipeline
