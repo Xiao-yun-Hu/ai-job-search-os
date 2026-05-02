@@ -29,13 +29,24 @@ README repositioning per maintainer feedback.
 Agent onboarding flow added.
 
 - New `AGENTS.md` at repo root — 5-stage onboarding flow (~50 min) for AI agents helping users
-  - Stage 1: Diagnose (career stage, geography, urgency, materials, comp, vibe>money)
+  - Stage 1: Diagnose (career stage, geography, urgency, materials, comp, decision priority)
   - Stage 2: Setup (candidate profile, target list, hard gates, decision memory)
   - Stage 3: Calibrate Match Function (compare Tier output to user intuition)
   - Stage 4: First run (manual review before auto-deploy)
   - Stage 5: Schedule deployment
 - README adds "Using with an AI Agent" section pointing to AGENTS.md
 - Closes UX gap: previously agents would skip onboarding and run morning task with empty config
+
+### v1.0.3 — 2026-05-03
+Fix: removed baked-in "vibe > money" default; decision priority is user-stated.
+
+- Different candidates legitimately rank trade-off dimensions differently (vibe / comp / speed / trajectory / etc.)
+- The original maintainer's preference ("vibe > money") was leaking into SYSTEM.md and the candidate profile template as if universal
+- Fixes:
+  - `docs/SYSTEM.md` Section 1.1 — Target Outcome now lists 6 trade-off dimensions, no default
+  - `docs/SYSTEM.md` Section 5.4 — Trade-off Matrix now shows 3 example user profiles (vibe-priority, comp-priority, speed-priority); user's stated priority selects which applies
+  - `templates/memory/project_candidate_profile.template.md` — Decision Priority section is now a fill-in step with 4 example priority statements
+  - `AGENTS.md` Stage 1 Q6 — explicit prompt for user-ranked priorities, no default assumption
 
 ## Stats
 

@@ -33,7 +33,19 @@ Ask the user, in order:
 5. **Compensation?**
    - Floor (must-have)
    - Ceiling expectation per region
-6. **Decision priority?** Vibe (team / founder / culture) vs money — what wins when they trade off?
+6. **Decision priority?** Different candidates rank these dimensions differently — **don't assume a default**. Ask the user to rank what matters most:
+   - Vibe / culture (team, founder, working style)
+   - Compensation (total comp)
+   - Role-form fit (does the work match what you want)
+   - Speed / timing (offer-by date)
+   - Career trajectory (growth / brand / scope)
+   - Other (mission, equity mix, team size, etc.)
+
+   Get a 1-line priority statement from the user. Examples:
+   - "Vibe > comp — won't accept low vibe even at ceiling"
+   - "Comp is binding — need ≥X total, vibe 3+ acceptable"
+   - "Speed-prioritizing — offer by [date] is non-negotiable"
+   - "Trajectory > comp — willing to take a hit for the right setup"
 
 Capture answers in a working note; you'll write them into memory in Stage 2.
 

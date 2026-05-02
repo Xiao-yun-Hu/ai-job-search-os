@@ -1,6 +1,6 @@
 ---
 name: candidate profile snapshot
-description: Complete candidate state — resume facts + compensation expectations + geographic constraints + narrative pillars + vibe>money decision priority
+description: Complete candidate state — resume facts + compensation expectations + geographic constraints + narrative pillars + user-stated decision priority
 type: project
 ---
 
@@ -48,7 +48,7 @@ type: project
 | [Region 2, e.g., SG/HK] | [—] | [Equivalent] | [—] |
 | [Region 3, e.g., US] | [—] | [USD] | [—] |
 
-> ⚠️ **Decision priority: vibe > money**. Compensation is a satisficing constraint (must hit floor), not a maximizing goal. Strong vibe match worth slight comp cut; weak vibe never accepted regardless of comp.
+> ⚠️ **State your decision priority below — different candidates legitimately rank these differently.** Don't leave default; the system applies your stated priority.
 
 ## Geographic Disqualifiers (hard constraint)
 
@@ -60,17 +60,47 @@ type: project
 - ✅ Priority: [List of priority regions]
 - See `feedback_target_strategy.md` for additional preferences (e.g., founder background, parent-company affinity)
 
-## Decision Priority (Vibe > Money)
+## Decision Priority (user-stated)
 
-> User stated [date]: "I'm OK on money. The main thing is whether the team's vibe and taste match mine."
+> ⚠️ **Fill this in yourself — there is no universal default.** Different candidates legitimately rank these dimensions differently.
 
-**Why**: Candidate already has stable position. Not a desperate seeker. Selection criterion is "the right next step", not "any offer".
+### Step 1: Rank these dimensions for yourself
 
-**How to apply**:
-1. When evaluating offers, **first** check team vibe (founder character / tech depth / customer focus / reflection capability), **then** comp.
-2. Don't push offers where vibe ≤ 3 even if comp is excellent.
-3. Accept threshold: vibe ≥ 4.5 with comp slightly below ceiling is preferable to vibe 3 with comp at ceiling.
-4. In comp negotiation, settle for mid-range. Don't push to ceiling at the cost of relationship.
+Number 1-5+ in your priority order (1 = most important):
+
+- [ ] **Vibe / culture fit** — team, founder character, working style
+- [ ] **Compensation** — total comp (cash + equity + bonus)
+- [ ] **Role-form fit** — does the work match what you want to do
+- [ ] **Speed / timing** — need offer by specific date
+- [ ] **Career trajectory** — growth, brand, scope of responsibility
+- [ ] **Geographic** — already a hard gate but might be ranked in priority too
+- [ ] **Other** — _______ (e.g., mission, industry, team size, equity-vs-cash mix)
+
+### Step 2: Write your priority statement
+
+Example formats (pick one or write your own):
+
+**Example A — Vibe-prioritizing** (e.g., already have stable role):
+> "I'm OK on money. Main thing is whether the team's vibe and taste match mine. Won't accept low vibe even with high comp."
+
+**Example B — Comp-prioritizing** (e.g., financial milestone, dependents):
+> "Comp is the binding constraint — I need ≥X total comp. Vibe matters but I'll accept vibe 3+ if comp clears my target."
+
+**Example C — Speed-prioritizing** (e.g., visa deadline, role gap):
+> "I need an offer by [date]. Optimize for time-to-offer with floor-acceptable other dimensions. Skip anything that won't move fast."
+
+**Example D — Trajectory-prioritizing** (e.g., career pivot):
+> "I'm willing to take a comp hit and accept some vibe variance for a 2-3 year setup that opens [specific career path]. Not for cash, not for prestige."
+
+**Your priority statement**:
+> [User stated YYYY-MM-DD: "_______"]
+
+### Step 3: How this applies
+
+The system applies your priority in:
+- **Match Function tier weighting** — when evaluating an opportunity, your top-priority dimension carries more weight in tier assignment
+- **Trade-off matrix** — when an opportunity is strong on some dimensions and weak on others, your priority resolves the trade-off (see `docs/SYSTEM.md` Section 5.4 for example matrices)
+- **Offer evaluation** — when comparing 2 offers, your stated priority is the tiebreaker
 
 ## Known Narrative Gaps (TODO)
 

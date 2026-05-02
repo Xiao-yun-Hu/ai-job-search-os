@@ -27,12 +27,16 @@
 
 ### 1.1 Target Outcome
 
-The system optimizes for **a high-quality offer match within a defined time horizon** (typical: 3 months / 90 days), where match means:
+The system optimizes for **a high-quality offer match within a defined time horizon** (typical: 3 months / 90 days). What "match" means is **user-defined** — every candidate has different priorities. Common dimensions:
 
-- Vibe ≥ 4.0 / 5 (per [Vibe Rubric](#46-vibe-rubric))
-- Role-form fit (Applied AI / Solutions / Systems / Decision-design types)
-- Compensation ≥ regional floor
-- Geographic fit (per user's hard constraints)
+- **Vibe / culture fit** (team, founder, working style)
+- **Role-form fit** (does the work match what you actually want to do)
+- **Compensation** (cash / equity / total comp)
+- **Geographic fit** (cities, remote-friendliness)
+- **Speed / timing** (need offer by X date vs. opportunistic)
+- **Career trajectory** (growth / brand / responsibility scope)
+
+The user states their priority among these in their candidate profile. The system applies that priority — it does not bake in a default like "vibe > money" or "growth > comp". **Different candidates legitimately rank these differently**, and the system respects that.
 
 > **Loss function (qualitative)**: `min(time_wasted_on_misfits + opportunity_cost_of_missed_good_fits)`. Not `max(application_count)`.
 
@@ -45,7 +49,7 @@ education: masters, bachelors
 technical_capabilities: [list]
 business_capabilities: [list]
 proof_of_work: flagship_project + impact_metrics
-preferences: preferred_role_types, rejected_role_types, geography, compensation_expectations, decision_priority (vibe_vs_money)
+preferences: preferred_role_types, rejected_role_types, geography, compensation_expectations, decision_priority (user-stated; e.g., vibe / comp / speed / trajectory / etc.)
 narrative_pillars: 3-5 core stories with specific numbers
 ```
 
@@ -533,17 +537,39 @@ Example structure:
 
 Pillars should be repeated consistently across resume / outreach / interview.
 
-### 5.4 Vibe-Money Trade-off Matrix
+### 5.4 Decision Priority Trade-off Matrix (user-customized)
 
-| Vibe | Salary acceptable | Decision |
+> ⚠️ **No universal answer.** Different candidates rank these dimensions differently. The matrix below shows three example user profiles. **Your candidate profile states your own priority**, and the matrix adapts.
+
+#### Example A: Vibe-prioritizing user (e.g., already has stable role, looking for "right next step")
+
+| Vibe | Comp acceptable | Decision |
 |---|---|---|
 | 4.5+ | Yes | Strong push |
 | 4.5+ | Slightly below ceiling | Accept, negotiate to mid-range |
 | 4.0 | Yes | Push |
-| 4.0 | Slightly low | Negotiate, look at equity / learning curve |
-| 3.0-3.5 | Yes | Continue but lower priority than 4.5+ |
-| 3.0-3.5 | Slightly low | Skip |
-| < 3.0 | Any | Skip (vibe > money is hard rule for thoughtful candidates) |
+| 4.0 | Slightly low | Negotiate equity / learning curve |
+| 3.0-3.5 | Yes | Lower priority than 4.5+ |
+| < 3.0 | Any | Skip — vibe is the binding constraint |
+
+#### Example B: Comp-prioritizing user (e.g., short timeline, financial milestone, dependents)
+
+| Comp | Vibe acceptable | Decision |
+|---|---|---|
+| Above ceiling | Yes (any vibe ≥ 3) | Strong push |
+| At ceiling | Yes (vibe ≥ 3.5) | Push |
+| At ceiling | Vibe < 3 | Negotiate vibe risk vs comp gain |
+| Slightly below ceiling | Vibe ≥ 4 | Push if comp can be pulled up |
+| Below floor | Any | Skip — comp is the binding constraint |
+
+#### Example C: Speed-prioritizing user (e.g., visa deadline, role gap)
+
+Trade-off lens: minimize time-to-offer with floor-acceptable other dimensions.
+- Maximize "Apply → Interview" velocity
+- Accept any vibe ≥ 3 + comp ≥ floor + geo OK if it's fast
+- Don't optimize for top-tier; optimize for *any* offer in time window
+
+> The user's stated priority (in `project_candidate_profile.md` "Decision Priority" section) selects which matrix applies.
 
 ---
 
