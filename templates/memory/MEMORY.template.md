@@ -1,22 +1,17 @@
-# Memory Index Template
+# Memory Index
+> Rules: This file is the index only. Specific content lives in subfiles.
+> Operational data (application records, daily logs) stays in job_search/logs/ — not here.
 
-> Rules: This file is for **index + highest-priority rules only**. Specific content goes in subfiles by type.
-> File types: identity (`user_*`) / decision (`decision_*`, hard rules) / feedback (`feedback_*`, soft preferences) / project (`project_*`, context/state) / meta (`memory_management_rules.md`).
+## Decision (hard rules — automated tasks must obey at runtime)
+- [decision_task_rules.md](decision_task_rules.md) — [job board pre-flight checks + task permissions + compensation hard gate]
 
-## Identity
-- [user_about_me.md](user_about_me.md) — [one-line description of candidate background]
+## Feedback (soft strategy — evolves with evidence)
+- [feedback_job_search_strategy.md](feedback_job_search_strategy.md) — [target company criteria + culture filter + signal handling + outreach principles]
 
-## Decision Rules (hard rules — task-runtime must obey)
-- [decision_salary_floor.md](decision_salary_floor.md) — [one-line salary floor rule]
-- [decision_geographic_filter.md](decision_geographic_filter.md) — [one-line geo filter]
-
-## Feedback (soft preferences / learned heuristics)
-- [feedback_target_strategy.md](feedback_target_strategy.md) — [one-line strategy]
-- [feedback_unknown_signals.md](feedback_unknown_signals.md) — Match unknown handling protocol
-
-## Project (current context / state)
-- [project_candidate_profile.md](project_candidate_profile.md) — Full candidate snapshot
-- [project_target_companies.md](project_target_companies.md) — Target company list
+## Project (current job search state)
+- [project_candidate_profile.md](project_candidate_profile.md) — Full candidate snapshot: communication style / resume / compensation / role targets / narrative pillars
+- [project_company_targets.md](project_company_targets.md) — Target company map: authoritative source pointer + Track A/B execution status
+- [project_job_search_current_state.md](project_job_search_current_state.md) — Operational snapshot (overwritten nightly): funnel / active conversations / pending decisions
 
 ## Meta
-- [memory_management_rules.md](memory_management_rules.md) — How memory is organized and maintained
+- [memory_management_rules.md](memory_management_rules.md) — File types / SSOT rules / archival / auto vs manual maintenance

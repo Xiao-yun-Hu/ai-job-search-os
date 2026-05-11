@@ -647,63 +647,89 @@ Sunday retro template:
 
 ## 7. Memory Design
 
-### 7.1 5-Type Taxonomy (CoALA-inspired)
+> **v3 design (2026-05-11)**: Consolidated from a fragmented 14-file structure to 6 purposeful files. Each file has a single, clear responsibility. See `templates/memory/` for templates.
 
-| Type | Prefix | Use | Examples |
+### 7.1 File Map
+
+| File | Type | Responsibility | Update cadence |
 |---|---|---|---|
-| **identity** | `user_*` | Stable user background | `user_us_experience.md` |
-| **decision** | `decision_*` | Hard rules used at task-runtime | `decision_salary_floor.md`, `decision_chrome_pretest.md` |
-| **feedback** | `feedback_*` | Soft preferences, learned heuristics | `feedback_overseas_strategy.md` |
-| **project** | `project_*` | Current context / state | `project_candidate_profile.md`, `project_target_companies.md` |
-| **(meta)** | `memory_management_rules.md` | System self-rules | (this file's analog) |
+| `decision_task_rules.md` | decision | Hard rules automated tasks must follow unconditionally | On rule change |
+| `feedback_job_search_strategy.md` | feedback | Soft strategy — target criteria, culture filter, signal handling, outreach principles | Weekly |
+| `project_candidate_profile.md` | project | Full candidate snapshot: communication style, resume, comp, role targets, narrative pillars | On resume/comp change |
+| `project_company_targets.md` | project | Target company execution status (Track A/B) | On each outreach action |
+| `project_job_search_current_state.md` | project | Operational snapshot — overwritten nightly by evening-retro | Nightly |
+| `memory_management_rules.md` | meta | System self-rules (this section's analog) | On architecture change |
 
-### 7.2 Frontmatter Schema (minimal — 3 fields)
+> **Why no `identity` type?** Global user identity (language, communication preferences) belongs at the user level, not inside a specific project's memory. Each project's memory scope is the project itself. If you use Claude Code across multiple projects, store global user facts at `~/.claude/` level instead.
+
+### 7.2 Frontmatter Schema (3 fields only)
 
 ```yaml
 ---
 name: short_name
 description: one_line_purpose
-type: identity | decision | feedback | project
+type: decision | feedback | project
 ---
 ```
 
-**Do NOT add** `importance`, `last_referenced`, `expires_at`, `links`. Research-paper concepts that don't pay off at our scale (typical < 50 memory files for one user).
+**Do NOT add:** `originSessionId`, `importance`, `last_referenced`, `expires_at`, `links`.
+Exception: if a rule has a clear expiry date, put it in the body as "**Valid until YYYY-MM-DD**".
 
 ### 7.3 SSOT (Single Source of Truth) Principle
 
-**Before creating new memory, grep for the fact**:
+Before creating new memory, grep for the fact:
 
 ```bash
 grep -r "keyword" memory/
 ```
 
-Rules:
-- Candidate facts (name / education / salary / geography) → only in `project_candidate_profile_*.md`
-- Job-search strategies (parallel outreach / overseas focus) → only in `feedback_*.md`
-- Hard filter rules (salary / Chrome / permissions) → only in `decision_*.md` or `config.yaml`
-- Company lists → `project_target_*.md` (index pointing to authoritative source)
+| Information type | Only location |
+|---|---|
+| Candidate facts (resume, comp, role targets) | `project_candidate_profile.md` |
+| Job-search strategy preferences | `feedback_job_search_strategy.md` |
+| Automated task hard rules | `decision_task_rules.md` |
+| Full target company list | Your authoritative list file (external) |
+| Company outreach status | `project_company_targets.md` |
+| Daily application records | `applications.jsonl` |
+| Daily retro logs | `logs/retro_YYYYMMDD.md` |
 
-### 7.4 Archival Mechanism (auto-maintenance)
+On SSOT violation: merge to the SSOT location, update other files to reference.
+
+### 7.4 What Goes in Memory vs What Doesn't
+
+**✅ Memory** (cross-session persistent facts / rules / strategy):
+- Hard rules tasks must follow at runtime
+- Strategy preferences learned from interviews / market feedback
+- Candidate profile snapshot and company outreach status
+- Nightly operational snapshot
+
+**❌ Not memory** (operational data / ephemeral observations):
+- Daily application records → `applications.jsonl`
+- Daily retro logs → `logs/retro_YYYYMMDD.md`
+- One-off company observations (interview feel, specific HR message) → `logs/retro_YYYYMMDD.md`
+  → Graduate to `feedback_job_search_strategy.md` only when the observation becomes a reusable pattern
+- Weekly / quarterly summaries → `logs/weekly_*.md`
+
+### 7.5 Archival Rules
 
 | Trigger | Action |
 |---|---|
 | `logs/retro_*.md` > 4 weeks old | Move to `logs/archive/` |
-| `logs/weekly_*.md` > 12 weeks old | Move to `logs/archive/` |
-| Old `project_candidate_profile_*.md` (after newer version) | Move to `memory/archive/` |
-| `decision_*.md` not triggered in 30+ days | Flag for monthly audit |
-| `feedback_*.md` contradicted by recent retros | Flag for user decision |
+| `project_candidate_profile.md` has a newer version | Move old to `memory/archive/` |
+| A rule in `decision_task_rules.md` hasn't triggered in 30+ days | Flag for monthly audit — do not auto-delete |
+| `feedback_job_search_strategy.md` contradicted by recent evidence | Flag for user decision |
 
-### 7.5 What Goes Where
+### 7.6 Storage Map
 
-| Type | Storage |
+| Type | Location |
 |---|---|
-| Cross-session memory | `memory/` (auto-loaded by `MEMORY.md` index) |
-| Daily logs | `logs/retro_*.md`, `logs/morning_*.md` |
+| Cross-session memory | `memory/` (auto-loaded via `MEMORY.md` index) |
+| Daily logs | `logs/retro_YYYYMMDD.md`, `logs/morning_YYYYMMDD.md` |
 | Weekly summaries | `logs/weekly_*.md` |
 | Research output | `research/` |
 | Application records | `applications.jsonl` |
 | Config | `config.yaml` |
-| System docs | `system/` (this file's analog) |
+| System docs | `docs/` (this file) |
 
 ---
 
