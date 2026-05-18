@@ -132,7 +132,7 @@ The goal is:
 
 ## Using with an AI Agent
 
-Most users will run this through an AI agent (Claude Code, Cursor, etc.) rather than reading the docs themselves.
+Most users will run this through an AI agent (Claude Code, Hermes, Cursor, etc.) rather than reading the docs themselves.
 
 If that's you, just clone and tell your agent:
 
@@ -142,7 +142,24 @@ The agent will walk you through ~50 minutes of setup — diagnosing your situati
 
 See [AGENTS.md](./AGENTS.md) for the full agent-onboarding flow.
 
-## Quick Start (manual, without an agent)
+## Quick Start — installable skill (Hermes)
+
+If you use [Hermes Agent](https://github.com/erichare/hermes-agent), this repo ships an installable skill:
+
+```bash
+git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
+cd ai-job-search-os
+bash scripts/install.sh          # creates ~/.ai-job-search/, symlinks skill, optional cron setup
+```
+
+Then in Hermes:
+```
+> /skills run ai-job-search "morning outreach"
+```
+
+The skill enforces a **memory bootstrap** at the start of every session — every L3 persona file gets loaded first, so a new conversation never starts blank. See [`docs/MEMORY_LAYERS.md`](./docs/MEMORY_LAYERS.md) for the 4-layer architecture (inspired by [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory)).
+
+## Quick Start — manual (no agent)
 
 ```bash
 # 1. Clone
@@ -150,25 +167,28 @@ git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
 cd ai-job-search-os
 
 # 2. Read the system docs
-open docs/SYSTEM.md       # Full architecture, decision logic, memory design
+open docs/SYSTEM.md            # Full architecture, decision logic, memory design
+open docs/MEMORY_LAYERS.md     # 4-layer memory architecture (v3)
 
 # 3. Set up your project structure
-mkdir -p ~/job-search/{logs,research,memory,system}
-cp templates/config.yaml.template ~/job-search/config.yaml
-cp templates/memory/*.template.md ~/job-search/memory/
+bash scripts/install.sh --no-cron   # creates ~/.ai-job-search/ with L1/L2/L3 layout
 
 # 4. Fill in your candidate profile
-$EDITOR ~/job-search/memory/project_candidate_profile.template.md
-# Then rename: mv project_candidate_profile.template.md project_candidate_profile.md
+$EDITOR ~/.ai-job-search/L3_persona/candidate_profile.md
 
-# 5. Customize config.yaml (keywords, hard gates, outreach message)
-$EDITOR ~/job-search/config.yaml
+# 5. Customize search config (keywords, daily_cap)
+$EDITOR ~/.ai-job-search/operational/search_config.json
 
-# 6. (Optional) Install scheduled tasks for Claude Code
-cp templates/scheduled-tasks/*.template.md ~/.claude/scheduled-tasks/
+# 6. (Optional) Configure LLM for the nightly distillation pipeline:
+export AI_JOB_SEARCH_LLM_URL=https://api.openai.com/v1
+export AI_JOB_SEARCH_LLM_KEY=sk-...
+export AI_JOB_SEARCH_LLM_MODEL=gpt-4o-mini
 
-# 7. Run a manual evaluation
-# Open Claude Code, ask: "Read SYSTEM.md and run Match Function on this JD: [paste JD]"
+# 7. Run the distillation pipeline (dry-run, see what it would do):
+python3 scripts/distill.py --dry-run
+
+# 8. Run a manual evaluation
+# Open Claude Code / Hermes, ask: "Read SKILL.md and run Match Function on this JD: [paste JD]"
 ```
 
 ## Example Outputs
@@ -185,10 +205,18 @@ See [`examples/`](./examples/) for anonymized samples:
 ai-job-search-os/
 ├── AGENTS.md                  # Onboarding flow for AI agents (read this first if you're an agent)
 ├── docs/
-│   └── SYSTEM.md              # Full architecture + decision logic + memory design
+│   ├── SYSTEM.md              # Full architecture + decision logic + memory design
+│   └── MEMORY_LAYERS.md       # v3: 4-layer memory architecture (L0/L1/L2/L3)
+├── skills/
+│   └── ai-job-search/
+│       └── SKILL.md           # Installable Hermes skill (with Step 0 bootstrap)
+├── scripts/
+│   ├── install.sh             # One-shot installer (data dir + skill symlink + cron)
+│   └── distill.py             # Nightly distillation: L0 sessions → L1 atoms → L2 retro → L3
 ├── templates/
 │   ├── config.yaml.template
-│   ├── memory/                # 5-type memory taxonomy templates (12 files)
+│   ├── L1_atoms_schema.md     # v3: atom JSONL schema
+│   ├── memory/                # L3 persona templates (6 files, v3 design)
 │   └── scheduled-tasks/       # Cron-driven task definitions (5 files)
 ├── examples/                  # Anonymized sample outputs (3 files)
 ├── LICENSE                    # MIT

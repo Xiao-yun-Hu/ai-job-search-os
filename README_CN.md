@@ -142,7 +142,24 @@ Agent 会带你走完 ~50 分钟的 setup —— 诊断你的情况、建 candid
 
 完整 agent onboarding 流程见 [AGENTS.md](./AGENTS.md)。
 
-## Quick Start（手动，不用 agent）
+## Quick Start —— 安装为 Hermes skill
+
+如果你用 [Hermes Agent](https://github.com/erichare/hermes-agent)，这个 repo 提供了开箱即装的 skill：
+
+```bash
+git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
+cd ai-job-search-os
+bash scripts/install.sh          # 创建 ~/.ai-job-search/、把 skill 软链到 Hermes、可选装 cron
+```
+
+然后在 Hermes 里：
+```
+> /skills run ai-job-search "morning outreach"
+```
+
+Skill 强制要求**每次 session 启动先做 memory bootstrap** —— 把所有 L3 persona 文件先加载进来，新对话不会从空白开始。架构详见 [`docs/MEMORY_LAYERS.md`](./docs/MEMORY_LAYERS.md)（4 层设计，灵感来自 [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory)）。
+
+## Quick Start —— 手动（不用 agent）
 
 ```bash
 # 1. Clone
@@ -150,25 +167,28 @@ git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
 cd ai-job-search-os
 
 # 2. 读系统文档
-open docs/SYSTEM.md       # 完整架构、决策逻辑、记忆设计
+open docs/SYSTEM.md            # 完整架构、决策逻辑、记忆设计
+open docs/MEMORY_LAYERS.md     # v3 的 4 层记忆架构
 
-# 3. 建你自己的项目目录
-mkdir -p ~/job-search/{logs,research,memory,system}
-cp templates/config.yaml.template ~/job-search/config.yaml
-cp templates/memory/*.template.md ~/job-search/memory/
+# 3. 一键建数据目录（L1/L2/L3 结构）
+bash scripts/install.sh --no-cron
 
 # 4. 填写你的 candidate profile
-$EDITOR ~/job-search/memory/project_candidate_profile.template.md
-# 重命名: mv project_candidate_profile.template.md project_candidate_profile.md
+$EDITOR ~/.ai-job-search/L3_persona/candidate_profile.md
 
-# 5. 定制 config.yaml（关键词 / 硬约束 / 投递消息）
-$EDITOR ~/job-search/config.yaml
+# 5. 定制搜索配置（关键词、daily_cap）
+$EDITOR ~/.ai-job-search/operational/search_config.json
 
-# 6.（可选）给 Claude Code 安装 scheduled tasks
-cp templates/scheduled-tasks/*.template.md ~/.claude/scheduled-tasks/
+# 6.（可选）配置 LLM 用于晚间蒸馏：
+export AI_JOB_SEARCH_LLM_URL=https://api.openai.com/v1
+export AI_JOB_SEARCH_LLM_KEY=sk-...
+export AI_JOB_SEARCH_LLM_MODEL=gpt-4o-mini
 
-# 7. 跑一次手动评估
-# 打开 Claude Code，问："读 SYSTEM.md，给这个 JD 跑一遍 Match Function: [贴 JD]"
+# 7. 跑一次蒸馏 dry-run，看会怎么处理：
+python3 scripts/distill.py --dry-run
+
+# 8. 跑一次手动评估
+# 打开 Claude Code / Hermes，问："读 SKILL.md，给这个 JD 跑一遍 Match Function: [贴 JD]"
 ```
 
 ## 样例输出
@@ -185,10 +205,18 @@ cp templates/scheduled-tasks/*.template.md ~/.claude/scheduled-tasks/
 ai-job-search-os/
 ├── AGENTS.md                  # AI agent 的 onboarding 指引（agent 第一个该读的文件）
 ├── docs/
-│   └── SYSTEM.md              # 完整架构 + 决策逻辑 + 记忆设计
+│   ├── SYSTEM.md              # 完整架构 + 决策逻辑 + 记忆设计
+│   └── MEMORY_LAYERS.md       # v3: 4 层 memory 架构（L0/L1/L2/L3）
+├── skills/
+│   └── ai-job-search/
+│       └── SKILL.md           # 开箱即装的 Hermes skill（带 Step 0 bootstrap）
+├── scripts/
+│   ├── install.sh             # 一键安装（数据目录 + skill 软链 + cron）
+│   └── distill.py             # 每晚蒸馏：L0 sessions → L1 atoms → L2 retro → L3
 ├── templates/
 │   ├── config.yaml.template
-│   ├── memory/                # 5 类 memory taxonomy 模板（12 个文件）
+│   ├── L1_atoms_schema.md     # v3: atom JSONL schema
+│   ├── memory/                # L3 persona 模板（6 个文件，v3 设计）
 │   └── scheduled-tasks/       # Cron 驱动的任务定义（5 个文件）
 ├── examples/                  # Anonymized 样例输出（3 个文件）
 ├── LICENSE                    # MIT

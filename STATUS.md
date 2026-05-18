@@ -1,9 +1,30 @@
-# Build Status — v1.0 SHIPPED ✅
+# Build Status — v3.0 SHIPPED ✅
 
 **Repo**: https://github.com/Xiao-yun-Hu/ai-job-search-os
 **License**: MIT (public)
 
 ## Release log
+
+### v3.0 — 2026-05-18
+Installable Hermes skill + 4-layer memory architecture (L0/L1/L2/L3).
+
+**The problem this solves:** in v1/v2 the skill relied entirely on in-conversation context. When a session was interrupted and reopened, the agent lost everything from previous conversations. The agent had to be re-briefed every time.
+
+**What's new:**
+- **Installable skill**: `skills/ai-job-search/SKILL.md` — full Scout / Match / Sender / Retro pipeline with a mandatory **Step 0 bootstrap** that loads every L3 persona file at the start of every session
+- **4-layer memory architecture**: `docs/MEMORY_LAYERS.md`
+  - L0 (raw dialogue) — `~/.hermes/sessions/*.json`, Hermes-managed
+  - L1 (atomic facts) — `~/.ai-job-search/atoms.jsonl`, append-only JSONL
+  - L2 (scenario blocks) — `~/.ai-job-search/L2_scenarios/*.md`, daily reports
+  - L3 (persona/state) — `~/.ai-job-search/L3_persona/*.md`, loaded at every session start
+- **Distillation pipeline**: `scripts/distill.py` runs nightly via cron, extracts L1 atoms from L0 sessions, aggregates into L2 retro, applies promotion rules to L3 strategy/decision_rules
+- **One-shot installer**: `scripts/install.sh` creates the data dir, symlinks SKILL.md into Hermes, optionally installs the cron entry
+- **L1 atoms schema** (`templates/L1_atoms_schema.md`): 5 atom types (application/conversation/decision/learning/feedback), append-only, grep-friendly
+- BOSS直聘 anti-bot guidance updated based on full-session empirical testing (CDP from user's trusted Chrome + human_delay required)
+
+**Inspired by:** [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory) (4-tier hierarchical memory). We adopt the layering concept and adapt it to pure local files (no SQLite, no vector store — grep is enough for job-search data scale).
+
+
 
 ### v1.0 — 2026-05-02 (commit `f448e09`)
 Initial release. 27 files, 2768 lines.
