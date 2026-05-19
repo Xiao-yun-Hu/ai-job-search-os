@@ -149,7 +149,12 @@ If you use [Hermes Agent](https://github.com/erichare/hermes-agent), this repo s
 ```bash
 git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
 cd ai-job-search-os
-bash scripts/install.sh          # creates ~/.ai-job-search/, symlinks skill, optional cron setup
+bash scripts/install.sh          # creates ~/.ai-job-search/, symlinks skill, optional cron setup, registers chrome-devtools MCP
+
+# start Chrome with CDP (once per machine session)
+open -a "Google Chrome" --args --remote-debugging-port=9222
+curl -s http://127.0.0.1:9222/json/version | python3 -c \
+  "import json,sys; print(json.load(sys.stdin).get('Browser'))"
 ```
 
 Then in Hermes:
@@ -158,6 +163,10 @@ Then in Hermes:
 ```
 
 The skill enforces a **memory bootstrap** at the start of every session — every L3 persona file gets loaded first, so a new conversation never starts blank. See [`docs/MEMORY_LAYERS.md`](./docs/MEMORY_LAYERS.md) for the 4-layer architecture (inspired by [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory)).
+
+Browser execution architecture and runtime safety policy:
+- [`docs/BROWSER_BACKEND.md`](./docs/BROWSER_BACKEND.md)
+- [`docs/RUNTIME_GOVERNOR.md`](./docs/RUNTIME_GOVERNOR.md)
 
 ## Quick Start — manual (no agent)
 
@@ -169,6 +178,8 @@ cd ai-job-search-os
 # 2. Read the system docs
 open docs/SYSTEM.md            # Full architecture, decision logic, memory design
 open docs/MEMORY_LAYERS.md     # 4-layer memory architecture (v3)
+open docs/BROWSER_BACKEND.md   # Browser backend (chrome-devtools-mcp + Hermes prefix)
+open docs/RUNTIME_GOVERNOR.md  # Action Governor policy model
 
 # 3. Set up your project structure
 bash scripts/install.sh --no-cron   # creates ~/.ai-job-search/ with L1/L2/L3 layout
@@ -187,7 +198,10 @@ export AI_JOB_SEARCH_LLM_MODEL=gpt-4o-mini
 # 7. Run the distillation pipeline (dry-run, see what it would do):
 python3 scripts/distill.py --dry-run
 
-# 8. Run a manual evaluation
+# 8. Start Chrome with remote debugging before browser-driven runs:
+open -a "Google Chrome" --args --remote-debugging-port=9222
+
+# 9. Run a manual evaluation
 # Open Claude Code / Hermes, ask: "Read SKILL.md and run Match Function on this JD: [paste JD]"
 ```
 
@@ -206,10 +220,14 @@ ai-job-search-os/
 ├── AGENTS.md                  # Onboarding flow for AI agents (read this first if you're an agent)
 ├── docs/
 │   ├── SYSTEM.md              # Full architecture + decision logic + memory design
-│   └── MEMORY_LAYERS.md       # v3: 4-layer memory architecture (L0/L1/L2/L3)
+│   ├── MEMORY_LAYERS.md       # v3: 4-layer memory architecture (L0/L1/L2/L3)
+│   ├── BROWSER_BACKEND.md     # v3.1: Hermes + chrome-devtools-mcp backend
+│   └── RUNTIME_GOVERNOR.md    # v3.1: policy layer (intent vs execution controls)
 ├── skills/
 │   └── ai-job-search/
 │       └── SKILL.md           # Installable Hermes skill (with Step 0 bootstrap)
+├── runtime/
+│   └── policy.yaml            # v3.1: per-platform Action Governor policy
 ├── scripts/
 │   ├── install.sh             # One-shot installer (data dir + skill symlink + cron)
 │   └── distill.py             # Nightly distillation: L0 sessions → L1 atoms → L2 retro → L3
@@ -239,14 +257,14 @@ What you fill in for your own use:
 
 ## Roadmap
 
-**v1.0 (current)** — System architecture + templates + Claude Code integration. Generic browser-automation pattern for job-board outreach.
+**v3.1 (current)** — installable Hermes skill + memory bootstrap + Action Governor + `chrome-devtools-mcp` browser backend.
 
-**v1.1 planned**:
+**v3.2 planned**:
 - Job board adapters: LinkedIn Easy Apply, SEEK, Indeed, Greenhouse-public
 - Resume parsing pipeline (PDF/DOCX → structured candidate profile)
 - Better example coverage (1-2 full anonymized end-to-end runs)
 
-**v2.0 ideas**:
+**v4.0 ideas**:
 - Conditional probability estimation when sample ≥ 100 (transition from heuristic to learned)
 - Funnel visualization dashboard
 - Multi-region search rules (overseas LinkedIn DM templates by region)

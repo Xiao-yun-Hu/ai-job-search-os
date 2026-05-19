@@ -1,9 +1,22 @@
-# Build Status — v3.0 SHIPPED ✅
+# Build Status — v3.1 SHIPPED ✅
 
 **Repo**: https://github.com/Xiao-yun-Hu/ai-job-search-os
 **License**: MIT (public)
 
 ## Release log
+
+### v3.1 — 2026-05-19
+Hermes browser backend migration finalized with four-layer governance architecture.
+
+**What changed:**
+- **Browser backend documented**: `docs/BROWSER_BACKEND.md` describes the four-layer model: `SKILL.md` intent → `runtime/policy.yaml` soft policy → `runtime_guard.py` executor enforcement → `chrome-devtools-mcp` mechanics
+- **Runtime governor spec added**: `docs/RUNTIME_GOVERNOR.md` — explains all four layers, guard config, and how to tune per-platform policy
+- **Policy file added**: `runtime/policy.yaml` — per-platform mode (`beside_user` / `ai_driven`), pacing, stop-conditions, confirmation gates, daily caps
+- **Executor guard implemented** in Hermes: `hermes_cli/runtime_guard.py` + enforcement in `model_tools.py` and `tools/registry.py`. When `runtime_governance.site: boss, mode: read_only`, all action tools (`navigate_page`, `click`, `fill`, `type_text`, etc.) are blocked at dispatch — the real tool is never called. Verified by 7 unit tests.
+- **Hermes MCP prefix confirmed by smoke test**: `mcp_chrome_devtools_*` (Hermes normalizes `chrome-devtools` → single underscores). Other MCP clients use `mcp__chrome-devtools__*`.
+- **Skill upgraded**: `skills/ai-job-search/SKILL.md` bumped to `3.1.0`, all `browser_xxx` calls migrated to `mcp_chrome_devtools_*`, Step 0 bootstrap now loads `runtime/policy.yaml`
+- **Installer upgraded**: `scripts/install.sh` now registers `chrome-devtools-mcp` via `hermes mcp add chrome-devtools ...`
+- **Launcher removed**: no `aijs-chrome` script; user attaches to their already-running Chrome with `--remote-debugging-port=9222`
 
 ### v3.0 — 2026-05-18
 Installable Hermes skill + 4-layer memory architecture (L0/L1/L2/L3).
@@ -20,7 +33,7 @@ Installable Hermes skill + 4-layer memory architecture (L0/L1/L2/L3).
 - **Distillation pipeline**: `scripts/distill.py` runs nightly via cron, extracts L1 atoms from L0 sessions, aggregates into L2 retro, applies promotion rules to L3 strategy/decision_rules
 - **One-shot installer**: `scripts/install.sh` creates the data dir, symlinks SKILL.md into Hermes, optionally installs the cron entry
 - **L1 atoms schema** (`templates/L1_atoms_schema.md`): 5 atom types (application/conversation/decision/learning/feedback), append-only, grep-friendly
-- BOSS直聘 anti-bot guidance updated based on full-session empirical testing (CDP from user's trusted Chrome + human_delay required)
+- BOSS直聘 anti-bot guidance updated based on full-session empirical testing (CDP from user's trusted Chrome + conservative pacing)
 
 **Inspired by:** [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory) (4-tier hierarchical memory). We adopt the layering concept and adapt it to pure local files (no SQLite, no vector store — grep is enough for job-search data scale).
 

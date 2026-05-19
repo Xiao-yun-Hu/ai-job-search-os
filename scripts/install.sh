@@ -151,7 +151,37 @@ if [ ! -e "$HERMES_SKILL_DIR" ]; then
   ok "symlinked: $HERMES_SKILL_DIR → $REPO_DIR/skills/ai-job-search"
 fi
 
-# ─── 4. Optional: install nightly cron ────────────────────────────────────────
+# ─── 4. Register chrome-devtools-mcp with Hermes ─────────────────────────────
+
+say "Registering chrome-devtools-mcp MCP server with Hermes"
+
+if ! command -v hermes >/dev/null 2>&1; then
+  warn "hermes not found in PATH — skipping MCP registration."
+  warn "Re-run this step manually after installing Hermes:"
+  warn "  hermes mcp add chrome-devtools \\"
+  warn "    --command npx \\"
+  warn "    --args \"-y,chrome-devtools-mcp@latest,--browser-url=http://127.0.0.1:9222\""
+elif ! command -v npx >/dev/null 2>&1; then
+  warn "npx not found — install Node 18+ first, then re-run install.sh."
+else
+  # Check if already registered
+  if hermes mcp list 2>/dev/null | grep -q "chrome-devtools"; then
+    skip "chrome-devtools MCP server already registered with Hermes"
+  else
+    hermes mcp add chrome-devtools \
+      --command npx \
+      --args "-y,chrome-devtools-mcp@latest,--browser-url=http://127.0.0.1:9222" \
+      2>&1 | sed 's/^/  /' || true
+    # Verify it was added
+    if hermes mcp list 2>/dev/null | grep -q "chrome-devtools"; then
+      ok "chrome-devtools MCP server registered (prefix: mcp_chrome_devtools_*)"
+    else
+      warn "MCP registration may have failed — check: hermes mcp list"
+    fi
+  fi
+fi
+
+# ─── 5. Optional: install nightly cron (distillation) ────────────────────────
 
 if [ "$NO_CRON" -eq 1 ]; then
   skip "cron setup skipped (--no-cron)"
@@ -176,7 +206,7 @@ else
   fi
 fi
 
-# ─── 5. Final summary ─────────────────────────────────────────────────────────
+# ─── 6. Final summary ─────────────────────────────────────────────────────────
 
 say "Setup complete."
 echo
@@ -189,5 +219,9 @@ echo "       export AI_JOB_SEARCH_LLM_KEY=sk-..."
 echo "       export AI_JOB_SEARCH_LLM_MODEL=gpt-4o-mini"
 echo "  4. Run a dry-run distillation to verify the pipeline:"
 echo "       python3 $REPO_DIR/scripts/distill.py --dry-run"
-echo "  5. In Hermes:  /skills run ai-job-search \"morning outreach\""
+echo "  5. Start Chrome with remote debugging (once per machine session):"
+echo "       open -a 'Google Chrome' --args --remote-debugging-port=9222"
+echo "       # Then verify: curl -s http://127.0.0.1:9222/json/version"
+echo "       # See docs/BROWSER_BACKEND.md for Chrome 136+ workarounds."
+echo "  6. In Hermes:  /skills run ai-job-search \"morning outreach\""
 echo

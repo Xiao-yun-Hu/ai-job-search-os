@@ -1,11 +1,12 @@
 ---
 name: ai-job-search
 description: 通用求职自动化 OS — 支持多平台（BOSS直聘/猎聘/智联/前程无忧/LinkedIn 等），自动 Onboarding 候选人档案，个性化 Scout + Match + Sender + Retro pipeline。v3 新增：4 层 memory（L0/L1/L2/L3）+ bootstrap 持久化，对话中断重启不丢上下文。
-version: 3.0.0
+version: 3.1.0
 license: MIT
 metadata:
   hermes:
     tags: [job-search, browser, automation, outreach, multi-platform, memory-bootstrap]
+    requires_mcp: [chrome-devtools]
     related_skills: []
 ---
 
@@ -17,7 +18,22 @@ metadata:
 
 **v3 新增**：4 层 memory 持久化（L0 raw / L1 atoms / L2 scenarios / L3 persona）。详见 [`docs/MEMORY_LAYERS.md`](../../docs/MEMORY_LAYERS.md)。
 
+**v3.1 新增**：Action Governor（`runtime/policy.yaml` 控制每平台节奏 / 止损条件 / 确认门）。浏览器层迁移到 `chrome-devtools-mcp`，工具前缀 `mcp_chrome_devtools_*`。详见 [`docs/BROWSER_BACKEND.md`](../../docs/BROWSER_BACKEND.md) 和 [`docs/RUNTIME_GOVERNOR.md`](../../docs/RUNTIME_GOVERNOR.md)。
+
 ---
+
+## 执行硬约束（必须遵守）
+
+1. **浏览器工具白名单**：仅允许使用 `mcp_chrome_devtools_*` 工具。  
+   - 明确禁止：`browser_navigate`、`browser_snapshot`、`browser_click`、`browser_type`、`browser_press`、`browser_cdp` 等所有 `browser_*` 内置工具。  
+   - 若模型尝试调用 `browser_*`，必须立即中止当前计划并改为 `mcp_chrome_devtools_*`。
+
+2. **分页节奏**：涉及翻页测试时必须拆成两段：  
+   - 段 A：只读当前页，不翻页；  
+   - 段 B：在用户确认后再翻下一页。  
+   不能在同一段里连续翻多页。
+
+3. **慢速动作**：翻页/点击前后必须遵守 `runtime/policy.yaml` 的最小间隔，不得“读完即点下一页”。
 
 ## STEP 0 — Bootstrap（每次 session 启动**第一件事**）
 
@@ -38,7 +54,12 @@ metadata:
    cat ~/.ai-job-search/operational/search_config.json
    cat ~/.ai-job-search/operational/company_blacklist.json
 
-4. 一行确认状态，然后再回应用户：
+4. 加载 Action Governor 策略（每平台的操作规则）：
+   cat ../../runtime/policy.yaml
+   → 解析每个启用平台对应的 mode / inter_action_min_ms / autonomous_navigate 等字段
+   → 存为 session 变量 platform_policy[domain]，后续所有 MCP 调用前查此表
+
+5. 一行确认状态，然后再回应用户：
    "已加载：profile（resume vN），funnel（本周 X 投 / Y 回），N 个待决策。开始。"
 ```
 
@@ -232,8 +253,8 @@ F. 其他（请附上网址）
 ```
 
 After user selects platforms:
-1. For each selected platform, call `browser_navigate(url=[login_url])`
-2. Immediately call `browser_vision(question="Is the user logged in? Look for their profile avatar or display name in the top-right corner.", annotate=True)`
+1. For each selected platform, call `mcp_chrome_devtools_navigate_page(url=[login_url])`
+2. Immediately call `mcp_chrome_devtools_take_screenshot()` + vision model: "Is the user logged in? Look for their profile avatar or display name in the top-right corner."
 3. **Require explicit user confirmation**: ask "Is the user logged in? Reply 'yes' or 'no'."
 4. If 'yes': write platform to `operational/search_config.json` and proceed.
 5. If 'no': prompt user to log in manually, then repeat steps 2–3 (max 2 retries). If still failed, skip platform and warn: "Login failed — skipped [platform]."
@@ -303,48 +324,33 @@ search_cfg   = load_json("~/.ai-job-search/operational/search_config.json")
 
 **1.1 搜索 & 提取列表**
 
-🛑 **BOSS直聘反爬核心规则（必须严格遵守）**：
+**Scout 流程（MCP 调用，节奏由 policy.yaml 控制）**：
 
-前提条件：
-- Hermes 必须连接**用户的常规 Chrome**（含已登录的 trusted session），不能用独立 profile
-- `config.yaml` 中 `human_delay.mode: 'on'`，min_ms ≥ 1800, max_ms ≥ 4500
-
-操作节奏要求：
-- **每个 browser 工具调用之间至少间隔 2 秒**（human_delay 自动注入）
-- **同一个页面动作连续失败 1 次就停下**，不要重试 — 重试会被识别成攻击
-- **翻页前后必须 snapshot 一次**，不能盲点 `下一页` 按钮
-- **跨关键词搜索之间间隔至少 10 秒**
-
-**Scout 流程（缓速自动模式）**：
+> Action Governor 查表：`policy = platform_policy["www.zhipin.com"]`
+> - `policy.mode == "beside_user"` → 跳过所有自动导航，进入半自动模式（见下文）
+> - `policy.mode == "ai_driven"` → 继续下方流程，每步调用之间遵守 `inter_action_min_ms`
 
 ```
-# Step 1：导航到首页（带城市）— 一次性
-browser_navigate(url="https://www.zhipin.com/web/geek/jobs?city=101210100")
-browser_snapshot()  # 等待页面稳定（human_delay 自动延迟 1.8-4.5 秒）
+# Step 1：读取当前页面（用户已手动导航到搜索结果页）
+mcp_chrome_devtools_take_snapshot()
+# → 从 snapshot 提取岗位卡片 title / company / salary / location / detail_url
 
-# Step 2：搜索关键词 — 用首页搜索框，不要直接拼 query URL
-browser_type(ref="搜索框", text="{keyword}")
-browser_snapshot()  # 等待输入完成
-browser_click(ref="搜索按钮")
-browser_snapshot()  # 等待搜索结果加载
+# Step 2：翻页（仅 autonomous_navigate=true 时执行）
+mcp_chrome_devtools_scroll_page()
+mcp_chrome_devtools_take_snapshot()     # 确认滚动结果
+mcp_chrome_devtools_click(uid=<下一页按钮UID>)
+mcp_chrome_devtools_take_snapshot()     # 必须确认页码变化再继续
 
-# Step 3：提取第1页岗位卡片
-# 从 snapshot 提取 title / company / salary / location / experience / detail_url
-
-# Step 4：翻页（如需要）— 每翻一页强制等 3-5 秒
-browser_scroll(direction="down")  # 模拟人类浏览
-browser_snapshot()
-browser_click(ref="下一页按钮")
-browser_snapshot()  # 必须确认页码变了再继续
-
-# Step 5：跨关键词搜索 — 间隔至少 10 秒
-# 在 SKILL 层做 sleep(10) 后再开始下一个关键词
+# Step 3：进入详情页
+mcp_chrome_devtools_navigate_page(url=detail_url)
+mcp_chrome_devtools_take_snapshot()     # 等待详情加载
 ```
 
-**异常恢复规则**：
-- 如果 snapshot 显示「安全验证」页面 → 立即停止所有自动化操作，提示用户手动完成验证后告知 Hermes 继续
+**安全验证处理**：
+- 每次 `take_snapshot` 后检查 URL 是否匹配 `policy.security_check_patterns`
+- 命中 → 立即停止，输出：`[SECURITY CHECK] 请在 Chrome 中手动完成验证，完成后回复"继续"`
 - 不要尝试自动点击验证组件
-- 验证完成后下一次操作前再等 10 秒
+- 等用户回复"继续"后，暂停 `security_check_cooldown_minutes` 分钟再恢复
 
 **城市代码备查**：杭州=101210100, 上海=101020100, 北京=101010100, 深圳=101280600
 
@@ -368,8 +374,8 @@ browser_snapshot()  # 必须确认页码变了再继续
 **1.3 详情页读取**
 
 ```
-browser_navigate(url=detail_url)
-browser_snapshot()
+mcp_chrome_devtools_navigate_page(url=detail_url)
+mcp_chrome_devtools_take_snapshot()
 ```
 
 提取：`funding_stage / company_size / jd_text / is_headhunter / company_description`
@@ -456,18 +462,26 @@ pending: ≥3 个维度信息不足 → 等用户补充
 
 **投递流程（通用，适配各平台）**：
 
+> Action Governor 查表：`policy = platform_policy[domain]`
+> - `policy.autonomous_submit == false` → 步骤 7 需要 `[CONFIRM REQUIRED]` 用户确认后才执行
+> - `policy.mode == "beside_user"` → 此函数不应被调用，改走半自动模式
+
 ```
-1. browser_navigate(url=detail_url)
-2. browser_vision(question="找到'立即沟通'/'打招呼'/'投递简历'等行动按钮", annotate=True)
-3. browser_click(ref="@e[N]")
-4. browser_vision(question="确认对话框/输入框已出现")
+1. mcp_chrome_devtools_navigate_page(url=detail_url)
+2. mcp_chrome_devtools_take_screenshot()
+   → 调用 vision 模型：找到"立即沟通"/"打招呼"/"投递简历"等行动按钮，返回 UID
+3. mcp_chrome_devtools_click(uid=<行动按钮UID>)
+4. mcp_chrome_devtools_take_snapshot()
+   → 确认对话框/输入框已出现
    → 未出现 → 重试1次 → 仍失败 → 跳过，记录"button_not_found"
-5. browser_type(ref="@e[input]", text=personalized_message)
+5. mcp_chrome_devtools_fill(uid=<输入框UID>, value=personalized_message)
    # personalized_message = candidate_profile.outreach_message
    #   + outreach_angle（Match 阶段生成的定制切入点）
-6. browser_vision(question="确认消息内容完整")
-7. browser_press(key="Enter") 或 browser_click(发送按钮)
-8. browser_vision(question="确认消息已发送")
+6. mcp_chrome_devtools_take_snapshot()  # 确认消息内容完整
+7. [CONFIRM REQUIRED] 输出消息预览，等用户回复"yes"
+   → 用户确认后：mcp_chrome_devtools_press_key(key="Enter")
+      或 mcp_chrome_devtools_click(uid=<发送按钮UID>)
+8. mcp_chrome_devtools_take_snapshot()  # 确认消息已发送
 9. 记录到 operational/applications.jsonl 和 atoms.jsonl
 ```
 
@@ -499,8 +513,8 @@ pending: ≥3 个维度信息不足 → 等用户补充
 对每个启用平台，读取消息列表：
 
 ```
-browser_navigate(url=platform.chat_url)
-browser_snapshot()
+mcp_chrome_devtools_navigate_page(url=platform.chat_url)
+mcp_chrome_devtools_take_snapshot()
 ```
 
 提取每条对话：`hr_name / company / role / last_message / read_status / timestamp`
@@ -646,125 +660,85 @@ echo '{"ts":"...","source":"<session_id>","type":"application","entities":{...},
 | 平台 | 自动化可靠性 | 主要问题 | 建议 |
 |------|-------------|---------|------|
 | LinkedIn | ✅ 高 | 基本无风控，页面加载稳定 | 优先使用，适合自动化投递 |
-| BOSS直聘 | ⚠️ 中 | 反爬虫机制强，需严格遵守上方反爬节奏规则 | 必须用 trusted Chrome session + human_delay；遇验证立即停手 |
+| BOSS直聘 | ⚠️ 中 | 反爬虫机制强，需严格遵守 policy 的 `beside_user` 与安全停手机制 | 必须使用用户日常 Chrome 会话；遇验证立即停手 |
 | 猎聘/智联/前程无忧 | ⚠️ 中 | 未充分测试，可能有类似 BOSS 的风控 | 先小规模测试再决定是否启用自动化 |
 
 **经验教训：**
-- LinkedIn 搜索和申请流程稳定，browser_navigate 和 browser_snapshot 都能正常工作
-- BOSS直聘的关键是：用户常规 Chrome 启 CDP（不是新 profile）+ human_delay 开启 + 操作节奏放缓 + 遇验证立即停
-- 优先选择 LinkedIn 自动化，BOSS 走「半自动」（用户翻页，Hermes 评分 + 写文案）也是合理选择
+- LinkedIn 搜索和申请流程稳定，`mcp_chrome_devtools_navigate_page` 和 `mcp_chrome_devtools_take_snapshot` 都能正常工作
+- BOSS直聘的关键是：用户常规 Chrome 启 CDP（不是新 profile）+ `beside_user` 模式（不自动翻页）+ 遇验证立即停
+- 优先选择 LinkedIn 自动化，BOSS 走「半自动」（用户翻页，AI 评分 + 写文案）是最可靠选择
 
 ---
 
 ## 故障排查：浏览器工具失效
 
-### 问题类型 1：浏览器会话未就绪
+### 问题类型 1：chrome-devtools-mcp 未连接
 
-**症状：**
-- `browser_navigate` 反复返回 `"No page found. Make sure the app has loaded content."`
-- `browser_cdp` + `Target.getTargets` 返回空 `targetInfos: []`
-- `browser_snapshot` 也返回相同错误
+**症状：** `mcp_chrome_devtools_*` 工具调用返回 "tool not found" 或 MCP 连接错误。
 
-**原因：**
-- 浏览器后端会话未初始化或已断开
-- Chrome 在运行但没有可用标签页
-
-**诊断命令：**
+**诊断：**
 ```bash
-browser_cdp(method='Target.getTargets', params={})
-# 空 targetInfos = 浏览器会话未就绪
+hermes mcp list        # 确认 chrome-devtools 出现
+hermes mcp test chrome-devtools  # 验证连接（期望 ✅ Connected, 33 tools）
 ```
 
 **解决：**
-- 需要重建浏览器会话（创建新标签页）
-- 不要反复尝试 `browser_navigate` 超过 3 次——这是会话级故障，不是页面加载问题
-- `browser_navigate` 返回 `about:blank` 但 CDP 显示其他标签页 → 会话切换失败
-- `browser_snapshot` 返回 BOSS直聘内容但 `browser_vision` 显示其他网站 → 标签页不同步
+- Chrome 未启动 → 用 `--remote-debugging-port=9222` 启动 Chrome（见 `docs/BROWSER_BACKEND.md`）
+- MCP 未注册 → 重跑 `bash scripts/install.sh`
+- npx 冷启动慢 → 等最多 60 秒后重试
 
 ---
 
-### 问题类型 2：平台反爬虫机制（BOSS 直聘常见）
+### 问题类型 2：`take_snapshot` 返回 "no current page"
 
-**症状：**
-- `browser_navigate` 成功返回，但 `browser_vision` 显示页面空白
-- `browser_snapshot` 只返回导航栏/页脚，没有动态内容
-- 搜索后页面不刷新，仍显示旧结果或空列表
-- 跳转到 `/web/passport/zp/verify.html` 安全验证页
+**症状：** Chrome 在运行但没有打开的标签页。
 
-**原因：**
-- BOSS 直聘检测到自动化浏览器，触发安全验证或拒绝返回动态内容
-- 独立 ChromeHermes profile 比用户常规 Chrome 更容易被识别（无浏览历史 = 可疑）
-- 程序化连续点击会被识别成攻击
-
-**经验教训（2026-05-18 full-session 测试）：**
-
-| 尝试 | 结果 |
-|------|------|
-| 独立 ChromeHermes profile + CDP | 触发 `_security_check` 重定向 |
-| 加 `--disable-blink-features=AutomationControlled` flag | 同上 |
-| 复制用户 trusted profile 给 ChromeHermesCDP（5GB） | 验证组件能加载，但快速连续点击会被再次拦截 |
-| 直接调 BOSS JSON API（带 referer） | 返回 `code: 37 您的环境存在异常` |
-| JS `document.cookie` | 关键认证 cookie 全是 HttpOnly，拿不到 |
-
-**结论：**BOSS 直聘必须用**用户常规 Chrome（CDP 接入）+ human_delay + 缓速操作**。任何「fresh profile + 全自动 + 高速」组合都会失败。
-
-**推荐流程（仍可工作）：**
-```bash
-# 前提：用户已用 --remote-debugging-port=9222 启动了自己的常规 Chrome
-# Hermes config.yaml: browser.cdp_url = http://localhost:9222
-# Hermes config.yaml: human_delay.mode = 'on', min_ms = 1800, max_ms = 4500
-
-browser_navigate(url="https://www.zhipin.com/")
-browser_snapshot()  # 等待首页加载完成
-browser_type(ref=e16, text="{keyword}")  # 在首页搜索框输入
-browser_click(ref=e18)  # 点击搜索按钮
-browser_vision(question="确认搜索结果显示的是 '{keyword}' 吗？列表中有相关岗位吗？")
-# 如果 vision 确认失败 → 不要继续，重新导航到首页再试
+**解决：**
+```
+mcp_chrome_devtools_new_page()  # 开一个新标签
+mcp_chrome_devtools_navigate_page(url="https://www.example.com")  # 然后导航
 ```
 
-**如果仍失败 → 切换到半自动模式（见下方）**
+或让用户手动按 Cmd+T 打开标签，然后重试。
 
 ---
 
-### 问题类型 3：登录态隔离
+### 问题类型 3：平台反爬虫机制（BOSS 直聘常见）
 
 **症状：**
-- 用户在个人浏览器已登录 BOSS 直聘/LinkedIn
-- 但代理的浏览器工具显示未登录状态
+- `take_snapshot` 只返回导航栏/页脚，没有动态内容
+- URL 跳转到 `/web/passport/zp/verify.html` 安全验证页
 
-**原因：**
-- **代理的浏览器工具与用户个人浏览器是完全独立的会话**（除非你用 CDP 接入了用户常规 Chrome）
-- Cookie/登录态不共享
-- 用户手动登录的状态不可被代理直接访问
+**原因：** BOSS 检测到非人类操作模式，触发安全验证。
 
-**解决：**
-- 代理需要在自己的浏览器会话中重新登录
-- 或者用 `--remote-debugging-port=9222` 启动用户常规 Chrome，让 Hermes 通过 CDP 接入（保留所有登录态）
-- 或者使用半自动模式（用户手动操作，代理辅助决策）
+**经验教训（2026-05-18 full-session 测试，见 `docs/BROWSER_BACKEND.md`）：**
+任何 "fresh profile + 自动翻页 + 高速" 组合都会触发 `_security_check`。用户的真实 Chrome + `beside_user` 模式是目前唯一可靠路径。
+
+**解决流程：**
+1. 检查 `policy.yaml`：`www.zhipin.com.mode` 必须是 `beside_user`
+2. 切换到半自动模式（用户手动浏览，AI 读快照评分）
+3. 如已触发验证 → 立即停止，等用户手动完成，冷却 30 分钟
 
 ---
 
-### 问题类型 4：外部招聘系统（Avature / Greenhouse / Workday）重定向失败
+### 问题类型 4：外部 ATS 重定向失败（Avature / Greenhouse / Workday）
 
-**症状：**
-- 点击 LinkedIn 的 "Apply on company website" 按钮后，页面跳转至 `ibmglobal.avature.net` 或类似域名，但显示空白或仅加载框架
-- `browser_snapshot()` returns "Empty page"
-- `browser_vision()` may fail or show minimal UI
+**症状：** 点击 "Apply on company website" 后页面空白。`take_snapshot` 返回空。
 
-**原因：**
-- Avature/Greenhouse/Workday detect non-human navigation or lack of session context
-- Redirects often require CAPTCHA, cookie consent, or JavaScript execution that fails in headless mode
-- This is expected behavior — these systems are designed to prevent automation
+**原因：** 这些 ATS 系统设计上就不允许程序化导航。属于预期行为。
 
 **解决：**
-- ✅ Do NOT retry or attempt further automation
-- ✅ Switch immediately to semi-auto mode
-- ✅ Extract job details from LinkedIn page (company, title, location, JD snippet) and generate outreach message
-- ✅ User copies/pastes into official portal manually
+- ✅ 不要重试，立即切换半自动模式
+- ✅ 从 LinkedIn 页面提取 JD 信息，生成文案
+- ✅ 用户手动在 ATS 门户填写和提交
 
-**Pro tip:** To locate hidden "Easy Apply" buttons when snapshot doesn't show them:
-```bash
-browser_console(expression="Array.from(document.querySelectorAll('button,a')).filter(el => el.textContent.toLowerCase().includes('easy apply')).map(el => ({text:el.textContent.trim(), ref:el.id||'no-id'}))")
+**定位隐藏的 Easy Apply 按钮：**
+```
+mcp_chrome_devtools_evaluate_script(code="
+  Array.from(document.querySelectorAll('button,a'))
+    .filter(el => el.textContent.toLowerCase().includes('easy apply'))
+    .map(el => ({text: el.textContent.trim(), id: el.id}))
+")
 ```
 
 ---
