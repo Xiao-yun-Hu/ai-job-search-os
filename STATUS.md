@@ -6,17 +6,24 @@
 ## Release log
 
 ### v3.2 — 2026-05-24
-Job search skill separated from AI Job Search OS.
+Job search skill fully separated into its own repository.
 
-**Problem this solves:** `skills/ai-job-search/SKILL.md` was an 808-line monolith that embedded the full operating spec (Bootstrap, Onboarding, modes, phases, Match logic, atom rules, prohibitions) alongside Hermes-specific glue code (tool name prefix, paging constraints, MCP troubleshooting). Any non-Hermes agent reading SKILL.md for operating guidance got Hermes-specific noise; any attempt to port the OS to a new runtime required untangling OS logic from Hermes adapter code.
+**Problem this solves:** The Hermes skill (`skills/ai-job-search/SKILL.md`) and the OS framework serve different user groups — Hermes users want a standalone installable skill; OS users want the full architecture, scripts, and memory pipeline. Co-locating them in one repo caused confusion and tight coupling (skill used `../../` relative paths into OS internals).
 
-**What changed:**
-- **New `docs/AGENT_PROTOCOL.md`** — agent-agnostic operating specification. Covers Bootstrap (Step 0), mode detection, all 7 operating modes (MORNING / EVENING / MATCH / DRAFT / ONBOARDING / CONVERSATIONAL / ADD-PLATFORM), semi-automatic mode, atom writing rules, absolute prohibitions, and a runtime adapter contract. Uses abstract `browser.*` tool names that adapters map to their runtime.
-- **`skills/ai-job-search/SKILL.md` slimmed from 808 → ~160 lines** — now a pure Hermes adapter: YAML frontmatter, tool name mapping table (`browser.*` → `mcp_chrome_devtools_*`), Hermes-specific execution constraints, platform reliability notes, and chrome-devtools-mcp troubleshooting. All workflow logic moved to AGENT_PROTOCOL.md.
-- **`AGENTS.md` updated** — Reference table at the bottom now points agents to AGENT_PROTOCOL.md for the runtime spec.
-- **`README.md` updated** — "Architecture: OS vs. Skill" table added; quick-start steps reference AGENT_PROTOCOL.md for non-Hermes agents; folder structure reflects the new doc.
+**Two-part fix:**
 
-**Result:** Claude Code, Cursor, and other agents can now follow `docs/AGENT_PROTOCOL.md` directly without encountering Hermes-specific tool names. Hermes users still use `skills/ai-job-search/SKILL.md` (which delegates to AGENT_PROTOCOL.md). The OS and the skill are decoupled.
+*Part 1 — Protocol extraction:*
+- **New `docs/AGENT_PROTOCOL.md`** — agent-agnostic operating specification. Covers Bootstrap (Step 0), mode detection, all 7 operating modes, semi-automatic mode, atom writing rules, prohibitions, and a runtime adapter contract. Uses abstract `browser.*` tool names. Any agent runtime implements this spec.
+
+*Part 2 — Physical separation:*
+- **`skills/` directory removed** from this repo.
+- **New repo: [`ai-job-search-skill`](https://github.com/Xiao-yun-Hu/ai-job-search-skill)** — standalone Hermes skill with its own `SKILL.md`, `policy.yaml`, `install.sh`, and `README.md`. No `../../` relative paths — references OS docs by absolute GitHub URL.
+- **`README.md` updated** — Hermes quick-start now points to `ai-job-search-skill` repo; "Architecture: OS vs. Skill" table added.
+- **`AGENTS.md` updated** — reference table points to `AGENT_PROTOCOL.md`.
+
+**Result:**
+- OS users: `git clone ai-job-search-os` → full system (architecture, distillation, templates, protocol)
+- Hermes users: `git clone ai-job-search-skill` → standalone skill, works without OS repo (except optional distill.py for nightly memory pipeline)
 
 ### v3.1 — 2026-05-19
 Hermes browser backend migration finalized with four-layer governance architecture.

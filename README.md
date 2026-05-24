@@ -156,12 +156,12 @@ If you use **Claude Code or another agent**: read AGENTS.md + AGENT_PROTOCOL.md 
 
 ## Quick Start — installable skill (Hermes)
 
-If you use [Hermes Agent](https://github.com/erichare/hermes-agent), this repo ships an installable skill:
+If you use [Hermes Agent](https://github.com/erichare/hermes-agent), install the dedicated skill repo:
 
 ```bash
-git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
-cd ai-job-search-os
-bash scripts/install.sh          # creates ~/.ai-job-search/, symlinks skill, optional cron setup, registers chrome-devtools MCP
+git clone https://github.com/Xiao-yun-Hu/ai-job-search-skill.git
+cd ai-job-search-skill
+bash install.sh          # creates ~/.ai-job-search/, copies policy.yaml, symlinks skill, registers chrome-devtools MCP
 
 # start Chrome with CDP (once per machine session)
 open -a "Google Chrome" --args --remote-debugging-port=9222
@@ -175,6 +175,8 @@ Then in Hermes:
 ```
 
 The skill enforces a **memory bootstrap** at the start of every session — every L3 persona file gets loaded first, so a new conversation never starts blank. See [`docs/MEMORY_LAYERS.md`](./docs/MEMORY_LAYERS.md) for the 4-layer architecture (inspired by [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory)).
+
+> **Hermes skill repo** (separate from this OS repo): [github.com/Xiao-yun-Hu/ai-job-search-skill](https://github.com/Xiao-yun-Hu/ai-job-search-skill)
 
 Operating spec (Bootstrap, modes, phases, rules — agent-agnostic):
 - [`docs/AGENT_PROTOCOL.md`](./docs/AGENT_PROTOCOL.md)
@@ -232,7 +234,7 @@ See [`examples/`](./examples/) for anonymized samples:
 ## Folder Structure
 
 ```
-ai-job-search-os/
+ai-job-search-os/              ← this repo (OS framework)
 ├── AGENTS.md                  # Onboarding flow for AI agents (read this first if you're an agent)
 ├── docs/
 │   ├── AGENT_PROTOCOL.md      # Agent-agnostic operating spec: Bootstrap, modes, phases, rules
@@ -240,10 +242,6 @@ ai-job-search-os/
 │   ├── MEMORY_LAYERS.md       # v3: 4-layer memory architecture (L0/L1/L2/L3)
 │   ├── BROWSER_BACKEND.md     # v3.1: Hermes + chrome-devtools-mcp backend
 │   └── RUNTIME_GOVERNOR.md    # v3.1: policy layer (intent vs execution controls)
-├── skills/
-│   └── ai-job-search/
-│       └── SKILL.md           # Hermes adapter — tool name mappings + troubleshooting only
-│                              # (operating spec lives in docs/AGENT_PROTOCOL.md)
 ├── runtime/
 │   └── policy.yaml            # v3.1: per-platform Action Governor policy
 ├── scripts/
@@ -258,6 +256,9 @@ ai-job-search-os/
 ├── LICENSE                    # MIT
 ├── README.md / README_CN.md   # Bilingual entry (this file)
 └── STATUS.md                  # Build log
+
+ai-job-search-skill/           ← separate repo (Hermes users)
+  https://github.com/Xiao-yun-Hu/ai-job-search-skill
 ```
 
 ## Customization Guide
