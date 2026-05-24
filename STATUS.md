@@ -1,9 +1,22 @@
-# Build Status — v3.1 SHIPPED ✅
+# Build Status — v3.2 SHIPPED ✅
 
 **Repo**: https://github.com/Xiao-yun-Hu/ai-job-search-os
 **License**: MIT (public)
 
 ## Release log
+
+### v3.2 — 2026-05-24
+Job search skill separated from AI Job Search OS.
+
+**Problem this solves:** `skills/ai-job-search/SKILL.md` was an 808-line monolith that embedded the full operating spec (Bootstrap, Onboarding, modes, phases, Match logic, atom rules, prohibitions) alongside Hermes-specific glue code (tool name prefix, paging constraints, MCP troubleshooting). Any non-Hermes agent reading SKILL.md for operating guidance got Hermes-specific noise; any attempt to port the OS to a new runtime required untangling OS logic from Hermes adapter code.
+
+**What changed:**
+- **New `docs/AGENT_PROTOCOL.md`** — agent-agnostic operating specification. Covers Bootstrap (Step 0), mode detection, all 7 operating modes (MORNING / EVENING / MATCH / DRAFT / ONBOARDING / CONVERSATIONAL / ADD-PLATFORM), semi-automatic mode, atom writing rules, absolute prohibitions, and a runtime adapter contract. Uses abstract `browser.*` tool names that adapters map to their runtime.
+- **`skills/ai-job-search/SKILL.md` slimmed from 808 → ~160 lines** — now a pure Hermes adapter: YAML frontmatter, tool name mapping table (`browser.*` → `mcp_chrome_devtools_*`), Hermes-specific execution constraints, platform reliability notes, and chrome-devtools-mcp troubleshooting. All workflow logic moved to AGENT_PROTOCOL.md.
+- **`AGENTS.md` updated** — Reference table at the bottom now points agents to AGENT_PROTOCOL.md for the runtime spec.
+- **`README.md` updated** — "Architecture: OS vs. Skill" table added; quick-start steps reference AGENT_PROTOCOL.md for non-Hermes agents; folder structure reflects the new doc.
+
+**Result:** Claude Code, Cursor, and other agents can now follow `docs/AGENT_PROTOCOL.md` directly without encountering Hermes-specific tool names. Hermes users still use `skills/ai-job-search/SKILL.md` (which delegates to AGENT_PROTOCOL.md). The OS and the skill are decoupled.
 
 ### v3.1 — 2026-05-19
 Hermes browser backend migration finalized with four-layer governance architecture.

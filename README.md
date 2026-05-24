@@ -142,6 +142,18 @@ The agent will walk you through ~50 minutes of setup — diagnosing your situati
 
 See [AGENTS.md](./AGENTS.md) for the full agent-onboarding flow.
 
+### Architecture: OS vs. Skill
+
+The system has two layers that are intentionally separated:
+
+| Layer | File | What it is |
+|---|---|---|
+| **OS** | [`docs/AGENT_PROTOCOL.md`](./docs/AGENT_PROTOCOL.md) | Agent-agnostic operating spec: Bootstrap, mode detection, Scout/Match/Sender/Retro phases, atom writing rules, prohibitions. Works with any agent runtime. |
+| **Skill** | [`skills/ai-job-search/SKILL.md`](./skills/ai-job-search/SKILL.md) | Hermes adapter: tool name mappings (`mcp_chrome_devtools_*`), Hermes-specific constraints, troubleshooting. |
+
+If you use **Hermes**: install the skill — it references AGENT_PROTOCOL.md for the full spec.  
+If you use **Claude Code or another agent**: read AGENTS.md + AGENT_PROTOCOL.md directly.
+
 ## Quick Start — installable skill (Hermes)
 
 If you use [Hermes Agent](https://github.com/erichare/hermes-agent), this repo ships an installable skill:
@@ -163,6 +175,9 @@ Then in Hermes:
 ```
 
 The skill enforces a **memory bootstrap** at the start of every session — every L3 persona file gets loaded first, so a new conversation never starts blank. See [`docs/MEMORY_LAYERS.md`](./docs/MEMORY_LAYERS.md) for the 4-layer architecture (inspired by [Tencent TencentDB-Agent-Memory](https://github.com/Tencent/TencentDB-Agent-Memory)).
+
+Operating spec (Bootstrap, modes, phases, rules — agent-agnostic):
+- [`docs/AGENT_PROTOCOL.md`](./docs/AGENT_PROTOCOL.md)
 
 Browser execution architecture and runtime safety policy:
 - [`docs/BROWSER_BACKEND.md`](./docs/BROWSER_BACKEND.md)
@@ -202,7 +217,8 @@ python3 scripts/distill.py --dry-run
 open -a "Google Chrome" --args --remote-debugging-port=9222
 
 # 9. Run a manual evaluation
-# Open Claude Code / Hermes, ask: "Read SKILL.md and run Match Function on this JD: [paste JD]"
+# Open Claude Code / any agent, ask: "Read docs/AGENT_PROTOCOL.md and run Match Function on this JD: [paste JD]"
+# (Hermes users: "Read SKILL.md and run Match on this JD: [paste JD]" — SKILL.md references AGENT_PROTOCOL.md)
 ```
 
 ## Example Outputs
@@ -219,13 +235,15 @@ See [`examples/`](./examples/) for anonymized samples:
 ai-job-search-os/
 ├── AGENTS.md                  # Onboarding flow for AI agents (read this first if you're an agent)
 ├── docs/
+│   ├── AGENT_PROTOCOL.md      # Agent-agnostic operating spec: Bootstrap, modes, phases, rules
 │   ├── SYSTEM.md              # Full architecture + decision logic + memory design
 │   ├── MEMORY_LAYERS.md       # v3: 4-layer memory architecture (L0/L1/L2/L3)
 │   ├── BROWSER_BACKEND.md     # v3.1: Hermes + chrome-devtools-mcp backend
 │   └── RUNTIME_GOVERNOR.md    # v3.1: policy layer (intent vs execution controls)
 ├── skills/
 │   └── ai-job-search/
-│       └── SKILL.md           # Installable Hermes skill (with Step 0 bootstrap)
+│       └── SKILL.md           # Hermes adapter — tool name mappings + troubleshooting only
+│                              # (operating spec lives in docs/AGENT_PROTOCOL.md)
 ├── runtime/
 │   └── policy.yaml            # v3.1: per-platform Action Governor policy
 ├── scripts/
