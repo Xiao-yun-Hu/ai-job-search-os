@@ -1,7 +1,7 @@
 # AI Job Search OS — Agent Protocol (v3.1)
 
 > **Agent-agnostic operating specification.**
-> Runtime adapters (e.g., [`skills/ai-job-search/SKILL.md`](../skills/ai-job-search/SKILL.md) for Hermes) implement this spec and only document what differs from it.
+> Runtime adapters (e.g., [`SKILL.md`](https://github.com/Xiao-yun-Hu/ai-job-search-skill/blob/main/SKILL.md) for Hermes) implement this spec and only document what differs from it.
 > For agent onboarding guidance, see [`AGENTS.md`](../AGENTS.md).
 
 ---
@@ -641,7 +641,7 @@ At 23:30, `scripts/distill.py` reads atoms, auto-generates L2 retro, and applies
 
 ## Runtime adapter contract
 
-A runtime-specific skill adapter (like `skills/ai-job-search/SKILL.md`) MUST:
+A runtime-specific skill adapter (like [`SKILL.md`](https://github.com/Xiao-yun-Hu/ai-job-search-skill/blob/main/SKILL.md) for Hermes) MUST:
 
 1. **Map tool names** — declare the mapping from abstract `browser.*` to runtime-specific tool calls
 2. **Declare additional constraints** — any execution constraints specific to the runtime (e.g., tool whitelist, paging throttle rules)

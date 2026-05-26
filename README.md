@@ -149,7 +149,7 @@ The system has two layers that are intentionally separated:
 | Layer | File | What it is |
 |---|---|---|
 | **OS** | [`docs/AGENT_PROTOCOL.md`](./docs/AGENT_PROTOCOL.md) | Agent-agnostic operating spec: Bootstrap, mode detection, Scout/Match/Sender/Retro phases, atom writing rules, prohibitions. Works with any agent runtime. |
-| **Skill** | [`skills/ai-job-search/SKILL.md`](./skills/ai-job-search/SKILL.md) | Hermes adapter: tool name mappings (`mcp_chrome_devtools_*`), Hermes-specific constraints, troubleshooting. |
+| **Skill** | [`ai-job-search-skill / SKILL.md`](https://github.com/Xiao-yun-Hu/ai-job-search-skill/blob/main/SKILL.md) | Hermes adapter: tool name mappings (`mcp_chrome_devtools_*`), Hermes-specific constraints, troubleshooting. Lives in a separate repo. |
 
 If you use **Hermes**: install the skill — it references AGENT_PROTOCOL.md for the full spec.  
 If you use **Claude Code or another agent**: read AGENTS.md + AGENT_PROTOCOL.md directly.

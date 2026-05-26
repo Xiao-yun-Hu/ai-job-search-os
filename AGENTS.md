@@ -197,5 +197,5 @@ If user can't answer a question (e.g., "I don't know my narrative pillars"):
 | [`docs/AGENT_PROTOCOL.md`](./docs/AGENT_PROTOCOL.md) | **Agent runtime spec** — Bootstrap, mode detection, MORNING/EVENING/MATCH/DRAFT phases, atom writing rules, prohibitions. Read this to understand exactly what the agent should execute in each mode. |
 | [`docs/SYSTEM.md`](./docs/SYSTEM.md) | Full architecture, Match Function logic, funnel design, memory design |
 | [`docs/MEMORY_LAYERS.md`](./docs/MEMORY_LAYERS.md) | 4-tier memory architecture (L0 raw → L1 atoms → L2 scenarios → L3 persona) |
-| [`skills/ai-job-search/SKILL.md`](./skills/ai-job-search/SKILL.md) | Hermes adapter — tool name mappings and Hermes-specific troubleshooting |
+| [`ai-job-search-skill / SKILL.md`](https://github.com/Xiao-yun-Hu/ai-job-search-skill/blob/main/SKILL.md) | Hermes adapter — tool name mappings and Hermes-specific troubleshooting (separate repo) |
 | [`templates/scheduled-tasks/`](./templates/scheduled-tasks/) | Cron-driven task templates (morning, evening, weekly) |
