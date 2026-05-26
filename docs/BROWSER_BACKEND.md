@@ -255,6 +255,38 @@ hermes mcp add chrome-devtools \
 
 ---
 
+## Backend options compared (tested 2026-05)
+
+Three browser automation backends were evaluated during development. Results below reflect testing on BOSS直聘 and 猎聘 on macOS with a lived-in daily Chrome profile.
+
+| Backend | Verdict | Notes |
+|---------|---------|-------|
+| **chrome-devtools-mcp** | ✅ **Default / recommended** | Attaches to user's running Chrome; 33 tools; Hermes-normalized prefix: `mcp_chrome_devtools_*`; H1 read test passed |
+| **Playwright** | ⚠️ **Not recommended** | Can connect to Chrome via CDP flag, but BOSS pages still drift or go blank; no anti-bot advantage vs. fresh Chrome |
+| **Camoufox** | ✅ **Alternative for 猎聘** | Headless on macOS (no visible window, serves via `localhost:9377`); 猎聘 keyword input test passed; BOSS headless still unstable |
+
+### chrome-devtools-mcp (default, recommended)
+
+Registered via `install.sh`. Attaches to whatever Chrome tab is currently active.
+The tool prefix under Hermes v0.10 is `mcp_chrome_devtools_*` (hyphens normalized to underscores).
+33 tools exposed. Read-heavy usage (snapshot + screenshot) works reliably on all platforms tested.
+
+### Playwright
+
+Playwright can attach to an existing Chrome via `--remote-debugging-port` and offers its own MCP server (`@playwright/mcp`). Evaluated as a potential drop-in for `chrome-devtools-mcp`.
+
+**Outcome:** BOSS pages drifted or rendered blank under Playwright's CDP attachment. The root cause is not Playwright itself but the fact that any fresh automation context (even one attached to the user's own Chrome) triggers BOSS's behavior heuristics. Playwright offers no advantage over `chrome-devtools-mcp` here and adds a heavier dependency. **Not used.**
+
+### Camoufox
+
+[Camoufox](https://camoufox.com/) is a hardened Firefox fork with anti-fingerprint patching. It runs headless on macOS (no GUI window) and exposes an HTTP API on `localhost:9377` rather than CDP.
+
+**Outcome:** 猎聘 search flow tested successfully — keyword input, results pagination, JD reading. BOSS直聘 remains unreliable in headless mode regardless of fingerprint quality; the signal BOSS trusts is multi-month session history on the exact device, which a separate headless browser cannot replicate.
+
+Camoufox is a viable alternative for 猎聘 if you cannot run Chrome with remote debugging. Connect it to Hermes by pointing `chrome-devtools-mcp` at `http://127.0.0.1:9377` instead of `:9222`. No other config change required.
+
+---
+
 ## What this design does not solve
 
 - ❌ **BOSS IP-level rate limits.** If BOSS flagged your home IP, no browser tooling helps. Wait it out.

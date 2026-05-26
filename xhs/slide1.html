@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px; height: 1080px;
+    background: #f2ede6;
+    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .card {
+    width: 940px;
+    padding: 64px 72px;
+  }
+  .meta {
+    font-size: 18px;
+    letter-spacing: 0.15em;
+    color: #999;
+    font-weight: 400;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+  .meta span {
+    color: #b5a898;
+    margin: 0 8px;
+  }
+  h1 {
+    font-size: 60px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.2;
+    margin-bottom: 48px;
+    letter-spacing: -0.02em;
+  }
+  .section {
+    margin-bottom: 36px;
+  }
+  .section-header {
+    display: inline-block;
+    background: #1a1a1a;
+    color: #f2ede6;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 5px 14px;
+    border-radius: 4px;
+    margin-bottom: 18px;
+    text-transform: uppercase;
+  }
+  .section-header.light {
+    background: transparent;
+    border: 1.5px solid #1a1a1a;
+    color: #1a1a1a;
+  }
+  .items {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 22px;
+    color: #2a2a2a;
+    line-height: 1.55;
+  }
+  .item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #8a7f75;
+    margin-top: 9px;
+    flex-shrink: 0;
+  }
+  .item strong {
+    color: #1a1a1a;
+  }
+  .item .muted {
+    font-size: 18px;
+    color: #888;
+    margin-left: 4px;
+  }
+  .divider {
+    border: none;
+    border-top: 1.5px solid #ddd6cc;
+    margin: 36px 0;
+  }
+  .tag-row {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .tag {
+    background: #e8e2da;
+    color: #5a5048;
+    font-size: 17px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="meta">AI SKILL &nbsp;·&nbsp; 2026.05</div>
+  <h1>用 AI Agent<br>帮你投简历</h1>
+
+  <div class="section">
+    <div class="section-header">是什么</div>
+    <div class="items">
+      <div class="item">
+        <div class="dot"></div>
+        <div>一个装在 <strong>Hermes</strong> 上的求职 skill，<br>帮你在 BOSS直聘、猎聘、LinkedIn 自动 Scout → Match → 投递</div>
+      </div>
+      <div class="item">
+        <div class="dot"></div>
+        <div>每次对话开始，自动加载你的候选人档案和近期复盘，<br><strong>对话中断重开不丢上下文</strong></div>
+      </div>
+      <div class="item">
+        <div class="dot"></div>
+        <div>MORNING 投递 / EVENING 复盘 / MATCH 单岗评分 / DRAFT 写文案</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section">
+    <div class="section-header light">为什么做</div>
+    <div class="items">
+      <div class="item">
+        <div class="dot"></div>
+        <div>投了 100 封简历没有回音，<strong>不是量的问题，是转化率的问题</strong></div>
+      </div>
+      <div class="item">
+        <div class="dot"></div>
+        <div>市面上的 AI 求职工具只优化「投得更多」<br>这个 skill 优化「投对的 30 个」</div>
+      </div>
+      <div class="item">
+        <div class="dot"></div>
+        <div>自己跑了一段时间，把流程沉淀下来开源</div>
+      </div>
+    </div>
+    <div class="tag-row" style="margin-top:20px;">
+      <span class="tag">开源 MIT</span>
+      <span class="tag">本地运行</span>
+      <span class="tag">不联网传数据</span>
+      <span class="tag">4 层 memory</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>
