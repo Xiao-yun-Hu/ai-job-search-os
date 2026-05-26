@@ -274,35 +274,6 @@ What you fill in for your own use:
 | Your outreach message | `config.yaml` `outreach.message` |
 | Your job board scraping logic | `templates/scheduled-tasks/job-board-morning-outreach.template.md` (Phase 1 / 3) |
 
-## Roadmap
-
-**v3.1 (current)** — installable Hermes skill + memory bootstrap + Action Governor + `chrome-devtools-mcp` browser backend.
-
-**v3.2 planned**:
-- Job board adapters: LinkedIn Easy Apply, SEEK, Indeed, Greenhouse-public
-- Resume parsing pipeline (PDF/DOCX → structured candidate profile)
-- Better example coverage (1-2 full anonymized end-to-end runs)
-
-**v4.0 ideas**:
-- Conditional probability estimation when sample ≥ 100 (transition from heuristic to learned)
-- Funnel visualization dashboard
-- Multi-region search rules (overseas LinkedIn DM templates by region)
-- Public marketplace of community-contributed Match rubrics by role family
-
-Open an issue to suggest priorities or contribute adapters.
-
-## Origin Story
-
-This repo started as one candidate's working operating system — running daily for an active job search, evolving via real funnel evidence. The original use case was an Applied AI / Solutions Architect candidate doing parallel domestic + overseas search across BOSS Zhipin, LinkedIn, and direct outreach.
-
-But the architecture is **not specific to AI roles**. The 5-type memory taxonomy, Match Function rubric, ordinal funnel stages, and Match-Reward separation principle apply to any job search where:
-
-- Total target list is finite (50-500 companies)
-- Candidate has a defined narrative (3-5 core proof-of-work stories)
-- Outcomes need to be measured to improve next-week strategy
-
-It's released as MIT for anyone who wants the framework. Examples in this repo are anonymized.
-
 ## Contributing
 
 Open an issue or PR. Particularly welcome:
