@@ -43,3 +43,10 @@ node_modules/
 
 # Derived files
 *.log
+
+# Internal dev / Codex task files — local only, never publish
+CODEX_*.md
+CODEX_*.md
+TEST_RESULTS*.md
+HOW_TO_USE.md
+start-chrome.sh
