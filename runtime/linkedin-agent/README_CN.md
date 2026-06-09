@@ -1,6 +1,6 @@
-# AI 求职浏览器插件
+# JobPilot
 
-一个面向 LinkedIn 求职场景的轻量级 Chrome 插件 + 本地后端服务。  
+一个面向 LinkedIn 求职场景的 Chrome 插件——根据简历排序职位并自动完成 Easy Apply，无需本地服务。  
 它可以分析当前 LinkedIn 搜索结果页中的职位，根据用户简历和求职偏好进行匹配排序，并自动完成 LinkedIn Easy Apply 投递流程——每次提交前都需要用户手动确认。
 
 ---

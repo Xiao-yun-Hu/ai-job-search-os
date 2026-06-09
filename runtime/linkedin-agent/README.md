@@ -1,6 +1,6 @@
-# AI Job Apply Browser Extension
+# JobPilot
 
-A lightweight Chrome extension + local backend service for LinkedIn job search automation.  
+A Chrome extension that ranks LinkedIn jobs by resume fit and automates Easy Apply — no local server needed.  
 It analyzes jobs on LinkedIn search results pages, ranks them against your resume, and automates LinkedIn Easy Apply applications — with a human confirmation gate before every submission.
 
 ---

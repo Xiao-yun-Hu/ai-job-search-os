@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "AI Job Search Filter",
+  "name": "JobPilot",
   "version": "0.2.0",
   "description": "Rank LinkedIn jobs by resume fit and automate Easy Apply — configurable AI model, human confirmation before every submit.",
   "permissions": ["storage", "activeTab", "scripting", "tabs"],
@@ -26,6 +26,6 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Job Filter"
+    "default_title": "JobPilot"
   }
 }
