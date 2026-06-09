@@ -1,5 +1,72 @@
-const SERVICE_URL = "http://localhost:7788";
+const DEFAULT_SERVICE_URL = "http://localhost:7788";
 const $ = id => document.getElementById(id);
+
+// ─── Agent Settings (loaded from chrome.storage.local) ────────────────────────
+let agentSettings = {
+  serviceUrl: DEFAULT_SERVICE_URL,
+  apiKey: "",
+  model: "",
+  baseUrl: "",
+  candidateName: "",
+  resume: "",
+  targetTitle: "",
+  location: "",
+  preferences: "",
+};
+
+function getServiceUrl() {
+  return (agentSettings.serviceUrl || DEFAULT_SERVICE_URL).trim().replace(/\/$/, "");
+}
+
+function getUserProfile() {
+  return {
+    name: agentSettings.candidateName || "",
+    resume: agentSettings.resume || "",
+    targetTitle: agentSettings.targetTitle || "",
+    location: agentSettings.location || "",
+    preferences: agentSettings.preferences || "",
+    apiKey: agentSettings.apiKey || "",
+    model: agentSettings.model || "",
+    baseUrl: agentSettings.baseUrl || "",
+  };
+}
+
+function loadSettingsIntoForm() {
+  const s = agentSettings;
+  if ($("setting-service-url")) $("setting-service-url").value = s.serviceUrl || DEFAULT_SERVICE_URL;
+  if ($("setting-api-key")) $("setting-api-key").value = s.apiKey || "";
+  if ($("setting-model")) $("setting-model").value = s.model || "";
+  if ($("setting-base-url")) $("setting-base-url").value = s.baseUrl || "";
+  if ($("setting-name")) $("setting-name").value = s.candidateName || "";
+  if ($("setting-title")) $("setting-title").value = s.targetTitle || "";
+  if ($("setting-location")) $("setting-location").value = s.location || "";
+  if ($("setting-prefs")) $("setting-prefs").value = s.preferences || "";
+  if ($("setting-resume")) $("setting-resume").value = s.resume || "";
+}
+
+function collectSettingsFromForm() {
+  return {
+    serviceUrl: ($("setting-service-url")?.value || DEFAULT_SERVICE_URL).trim(),
+    apiKey: ($("setting-api-key")?.value || "").trim(),
+    model: ($("setting-model")?.value || "").trim(),
+    baseUrl: ($("setting-base-url")?.value || "").trim(),
+    candidateName: ($("setting-name")?.value || "").trim(),
+    targetTitle: ($("setting-title")?.value || "").trim(),
+    location: ($("setting-location")?.value || "").trim(),
+    preferences: ($("setting-prefs")?.value || "").trim(),
+    resume: ($("setting-resume")?.value || "").trim(),
+  };
+}
+
+function persistSettings(settings) {
+  agentSettings = { ...agentSettings, ...settings };
+  chrome.storage.local.set({ agentSettings });
+}
+
+/** Returns true if the user has set up a resume — used for onboarding nudge. */
+function hasProfile() {
+  return !!(agentSettings.resume && agentSettings.resume.trim().length > 50);
+}
 
 let chatHistory = [];
 let currentTabId = null;
@@ -336,10 +403,10 @@ async function extractJobCards(tabId = currentTabId, targetCount = 3) {
 
 // ─── Feature 4: rankJobs ──────────────────────────────────────────────────────
 async function rankJobs(cards, config) {
-  const r = await fetch(`${SERVICE_URL}/rank`, {
+  const r = await fetch(`${getServiceUrl()}/rank`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cards, config })
+    body: JSON.stringify({ cards, config, profile: getUserProfile() })
   });
   const data = await r.json();
   if (!data.ok) throw new Error(data.error);
@@ -1604,10 +1671,10 @@ async function sendChat(message) {
   const { text, url, links } = await getPageText();
 
   try {
-    const r = await fetch(`${SERVICE_URL}/chat`, {
+    const r = await fetch(`${getServiceUrl()}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, pageText: text, url, links, history: chatHistory.slice(-10) })
+      body: JSON.stringify({ message, pageText: text, url, links, history: chatHistory.slice(-10), profile: getUserProfile() })
     });
     const data = await r.json();
     console.log("[POPUP DEBUG] Server response:", JSON.stringify({ intent: data.intent, navigateUrl: data.navigateUrl, ok: data.ok }));
@@ -1648,7 +1715,7 @@ async function handleAnalyze(tabId = currentTabId, fallbackJob = null) {
 
   addMessage("system", "Analyzing...");
   try {
-    const r = await fetch(`${SERVICE_URL}/extract`, {
+    const r = await fetch(`${getServiceUrl()}/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pageText: text, url })
@@ -1857,7 +1924,7 @@ async function checkService() {
   const chatInput = $("chat-input");
   const sendButton = $("btn-send");
   try {
-    const r = await fetch(`${SERVICE_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    const r = await fetch(`${getServiceUrl()}/health`, { signal: AbortSignal.timeout(2000) });
     if (r.ok) {
       $("service-status").className = "status-bar connected";
       $("status-text").textContent = "Ready";
@@ -1934,13 +2001,55 @@ if (clearBtn) {
     const historyPanel = $("history-panel");
     if (historyPanel) historyPanel.style.display = "none";
     if (historyBtn) historyBtn.classList.remove("active");
-    addMessage("system", "Chat cleared. Hi! Open a LinkedIn job page and click Analyze, or ask me anything.");
+    addMessage("system", "Chat cleared. Hi! Open a LinkedIn job page and ask me anything.");
   });
 }
 
-// Init
-checkService();
-setInterval(checkService, 8000);
+// ─── Settings panel ───────────────────────────────────────────────────────────
+const settingsBtn = $("btn-settings");
+const settingsPanel = $("settings-panel");
+
+if (settingsBtn && settingsPanel) {
+  settingsBtn.addEventListener("click", () => {
+    const isVisible = settingsPanel.style.display !== "none";
+    if (isVisible) {
+      settingsPanel.style.display = "none";
+      settingsBtn.classList.remove("active");
+    } else {
+      loadSettingsIntoForm();
+      settingsPanel.style.display = "block";
+      settingsBtn.classList.add("active");
+      // Close other panels
+      const hp = $("history-panel");
+      const ap = $("applied-panel");
+      if (hp) hp.style.display = "none";
+      if (ap) ap.style.display = "none";
+      if (historyBtn) historyBtn.classList.remove("active");
+      if (appliedBtn) appliedBtn.classList.remove("active");
+    }
+  });
+}
+
+const saveSettingsBtn = $("btn-settings-save");
+if (saveSettingsBtn) {
+  saveSettingsBtn.addEventListener("click", () => {
+    const newSettings = collectSettingsFromForm();
+    persistSettings(newSettings);
+    const statusEl = $("settings-save-status");
+    if (statusEl) {
+      statusEl.textContent = "✅ Saved";
+      statusEl.style.display = "block";
+      setTimeout(() => { statusEl.style.display = "none"; }, 2000);
+    }
+  });
+}
+
+// ─── Init: load settings first, then start service check ─────────────────────
+chrome.storage.local.get("agentSettings", ({ agentSettings: saved }) => {
+  if (saved) agentSettings = { ...agentSettings, ...saved };
+  checkService();
+  setInterval(checkService, 8000);
+});
 
 // Lock the tab ID when popup opens — all operations use the last focused normal browser tab,
 // not the extension popup window itself.

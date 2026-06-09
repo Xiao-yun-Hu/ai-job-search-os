@@ -92,16 +92,16 @@ app.post("/chat", async (req, res) => {
       url = "",
       links = [],
       history = [],
-    } = req.body as PagePayload & { message?: string; history?: ChatHistoryItem[] };
+      profile,
+    } = req.body as PagePayload & { message?: string; history?: ChatHistoryItem[]; profile?: UserProfile };
     if (!message?.trim()) throw new Error("message is required");
 
     const candidateLinks = normalizeLinkedInLinks(Array.isArray(links) ? links : []);
 
+    const profileBlock = buildProfileBlock(profile);
     const systemPrompt = [
       "You are a job search assistant embedded in a Chrome extension popup.",
-      "You help Rach Hu (AI Agent Architect, 8+ years) evaluate jobs and decide whether to apply.",
-      "Target: AI-native companies, Agent OS / LLM Platform roles, remote/hybrid.",
-      "Salary: 30-50K CNY or SGD market rate.",
+      profileBlock,
       "",
       "CAPABILITIES AND RULES:",
       "1. You can read the current page content provided below.",
@@ -136,8 +136,10 @@ app.post("/chat", async (req, res) => {
       { role: "user", content: message },
     ];
 
-    const completion = await llm.chat.completions.create({
-      model: DEFAULT_MODEL,
+    const chatLlm = getLlmForProfile(profile);
+    const chatModel = getModelForProfile(profile);
+    const completion = await chatLlm.chat.completions.create({
+      model: chatModel,
       messages,
       temperature: 0.3,
     });
@@ -248,6 +250,53 @@ type RankConfig = {
   keyword?: string;
 };
 
+type UserProfile = {
+  name?: string;
+  resume?: string;
+  targetTitle?: string;
+  location?: string;
+  preferences?: string;
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
+};
+
+/** Build a system prompt identity block from user profile, with sensible defaults. */
+function buildProfileBlock(profile?: UserProfile): string {
+  const name = profile?.name?.trim() || "the candidate";
+  const lines: string[] = [`You are a job search assistant helping ${name}.`];
+  if (profile?.targetTitle?.trim()) {
+    lines.push(`Target roles: ${profile.targetTitle.trim()}.`);
+  }
+  if (profile?.location?.trim()) {
+    lines.push(`Preferred location: ${profile.location.trim()}.`);
+  }
+  if (profile?.preferences?.trim()) {
+    lines.push(`Additional preferences: ${profile.preferences.trim()}`);
+  }
+  if (profile?.resume?.trim()) {
+    const resumeSnippet = profile.resume.trim().slice(0, 2500);
+    lines.push(`\nCandidate resume:\n${resumeSnippet}`);
+  }
+  return lines.join("\n");
+}
+
+/** Create an LLM client from profile overrides, falling back to env/defaults. */
+function getLlmForProfile(profile?: UserProfile): typeof llm {
+  if (profile?.apiKey || profile?.baseUrl || profile?.model) {
+    const OpenAI = (llm as unknown as { constructor: new (opts: object) => typeof llm }).constructor;
+    return new (OpenAI as unknown as new (opts: object) => typeof llm)({
+      apiKey: profile.apiKey || process.env.DASHSCOPE_API_KEY,
+      baseURL: profile.baseUrl || "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    });
+  }
+  return llm;
+}
+
+function getModelForProfile(profile?: UserProfile): string {
+  return profile?.model?.trim() || DEFAULT_MODEL;
+}
+
 function normalizeJobUrl(url?: string): string {
   return String(url || "").split("?")[0].replace(/\/+$/, "");
 }
@@ -267,23 +316,23 @@ function findSourceCard(item: Partial<RankedJob>, cards: JobCard[]): JobCard | u
 
 app.post("/rank", async (req, res) => {
   try {
-    const { cards, config } = req.body as { cards: JobCard[]; config: RankConfig };
+    const { cards, config, profile } = req.body as { cards: JobCard[]; config: RankConfig; profile?: UserProfile };
     if (!Array.isArray(cards) || cards.length === 0) throw new Error("cards array is required and must be non-empty");
 
     const targetCount = config?.targetCount ?? 3;
     const minScore = config?.minScore ?? 70;
+    const candidateName = profile?.name?.trim() || "the candidate";
 
     const systemPrompt = [
-      "You are a job ranking assistant for Rachel Hu (AI Agent Architect, 8+ years).",
-      "Target roles: AI-native companies, Agent OS / LLM Platform / Multi-agent systems.",
-      "Preferred: remote or hybrid. Salary: 30–50K CNY/month or SGD market rate.",
-      "Rank the provided job cards from best to worst fit.",
+      buildProfileBlock(profile),
+      "",
+      "Rank the provided job cards from best to worst fit for this candidate.",
       `Return exactly ${targetCount} jobs (or fewer if less available).`,
       `Only include jobs with match score >= ${minScore}.`,
       "Return JSON array: [{title, company, url, location, score (0-100), fitReason, risk}]",
       "Do not invent jobs. Only use jobs from the provided cards.",
       "Do not return markdown. Return raw JSON array only.",
-      "fitReason: 1 short sentence why this role fits Rachel.",
+      `fitReason: 1 short sentence why this role fits ${candidateName}.`,
       "risk: 1 short sentence about the main risk or concern (empty string if none).",
     ].join("\n");
 
@@ -293,8 +342,10 @@ app.post("/rank", async (req, res) => {
 
     const userPrompt = `Job cards to rank:\n${cardList}\n\nKeyword context: ${config?.keyword || "AI roles"}`;
 
-    const completion = await llm.chat.completions.create({
-      model: DEFAULT_MODEL,
+    const rankLlm = getLlmForProfile(profile);
+    const rankModel = getModelForProfile(profile);
+    const completion = await rankLlm.chat.completions.create({
+      model: rankModel,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

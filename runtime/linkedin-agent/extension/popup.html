@@ -22,9 +22,42 @@
     <div id="applied-list"></div>
   </div>
 
+  <!-- Settings panel -->
+  <div id="settings-panel" style="display: none;">
+    <div id="settings-content">
+      <div class="settings-section">
+        <h3>Service</h3>
+        <label for="setting-service-url">Service URL</label>
+        <input id="setting-service-url" type="text" placeholder="http://localhost:7788" />
+        <label for="setting-api-key">LLM API Key (passed to service)</label>
+        <input id="setting-api-key" type="password" placeholder="sk-..." />
+        <label for="setting-model">Model name</label>
+        <input id="setting-model" type="text" placeholder="qwen-plus-2025-11-05" />
+        <label for="setting-base-url">LLM Base URL</label>
+        <input id="setting-base-url" type="text" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+      </div>
+      <div class="settings-section">
+        <h3>Your Profile</h3>
+        <label for="setting-name">Your name</label>
+        <input id="setting-name" type="text" placeholder="e.g. Jane Smith" />
+        <label for="setting-title">Target job titles</label>
+        <input id="setting-title" type="text" placeholder="e.g. AI Engineer, ML Engineer, LLM Engineer" />
+        <label for="setting-location">Preferred location</label>
+        <input id="setting-location" type="text" placeholder="e.g. Singapore, Remote, London" />
+        <label for="setting-prefs">Other preferences</label>
+        <textarea id="setting-prefs" rows="3" placeholder="e.g. Prefer AI-native startups. Min salary 8000 SGD. No relocation."></textarea>
+        <label for="setting-resume">Resume (paste full text)</label>
+        <textarea id="setting-resume" rows="6" placeholder="Paste your resume here — used for job matching and fit scoring..."></textarea>
+      </div>
+      <button id="btn-settings-save">Save Settings</button>
+      <div id="settings-save-status" style="display:none;"></div>
+    </div>
+  </div>
+
   <div id="quick-actions">
     <button id="btn-history" title="Show/hide chat history">📋 History</button>
     <button id="btn-applied" title="Show/hide applied jobs">📊 Applied <span id="applied-count"></span></button>
+    <button id="btn-settings" title="Settings">⚙️</button>
     <button id="btn-clear" title="Clear chat">🗑️</button>
   </div>
 
