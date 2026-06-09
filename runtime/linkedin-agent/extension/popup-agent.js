@@ -1,12 +1,10 @@
-const DEFAULT_SERVICE_URL = "http://localhost:7788";
 const $ = id => document.getElementById(id);
 
 // ─── Agent Settings (loaded from chrome.storage.local) ────────────────────────
 let agentSettings = {
-  serviceUrl: DEFAULT_SERVICE_URL,
   apiKey: "",
-  model: "",
   baseUrl: "",
+  model: "",
   candidateName: "",
   resume: "",
   targetTitle: "",
@@ -14,29 +12,55 @@ let agentSettings = {
   preferences: "",
 };
 
-function getServiceUrl() {
-  return (agentSettings.serviceUrl || DEFAULT_SERVICE_URL).trim().replace(/\/$/, "");
+// ─── LLM helpers ──────────────────────────────────────────────────────────────
+
+/** Call any OpenAI-compatible LLM API directly from the extension. */
+async function callLLM(messages, { temperature = 0.3 } = {}) {
+  const apiKey = (agentSettings.apiKey || "").trim();
+  const baseUrl = (agentSettings.baseUrl || "https://dashscope.aliyuncs.com/compatible-mode/v1").trim().replace(/\/$/, "");
+  const model = (agentSettings.model || "qwen-plus-2025-11-05").trim();
+
+  if (!apiKey) throw new Error("No API key configured. Open ⚙️ Settings and enter your API key.");
+
+  const r = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({ model, messages, temperature })
+  });
+
+  if (!r.ok) {
+    let errText = "";
+    try { errText = await r.text(); } catch {}
+    throw new Error(`LLM API error ${r.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await r.json();
+  return data.choices?.[0]?.message?.content || "";
 }
 
-function getUserProfile() {
-  return {
-    name: agentSettings.candidateName || "",
-    resume: agentSettings.resume || "",
-    targetTitle: agentSettings.targetTitle || "",
-    location: agentSettings.location || "",
-    preferences: agentSettings.preferences || "",
-    apiKey: agentSettings.apiKey || "",
-    model: agentSettings.model || "",
-    baseUrl: agentSettings.baseUrl || "",
-  };
+/** Build a system-prompt identity block from the user's saved profile. */
+function buildProfileBlock() {
+  const name = (agentSettings.candidateName || "").trim() || "the candidate";
+  const lines = [`You are a job search assistant helping ${name}.`];
+  if (agentSettings.targetTitle?.trim()) lines.push(`Target roles: ${agentSettings.targetTitle.trim()}.`);
+  if (agentSettings.location?.trim()) lines.push(`Preferred location: ${agentSettings.location.trim()}.`);
+  if (agentSettings.preferences?.trim()) lines.push(`Additional preferences: ${agentSettings.preferences.trim()}`);
+  if (agentSettings.resume?.trim()) lines.push(`\nCandidate resume:\n${agentSettings.resume.trim().slice(0, 2500)}`);
+  return lines.join("\n");
 }
+
+/** Normalize a job URL for deduplication (strip query params and trailing slash). */
+function normalizeJobUrl(url) {
+  return String(url || "").split("?")[0].replace(/\/+$/, "");
+}
+
+// ─── Settings form helpers ────────────────────────────────────────────────────
 
 function loadSettingsIntoForm() {
   const s = agentSettings;
-  if ($("setting-service-url")) $("setting-service-url").value = s.serviceUrl || DEFAULT_SERVICE_URL;
   if ($("setting-api-key")) $("setting-api-key").value = s.apiKey || "";
-  if ($("setting-model")) $("setting-model").value = s.model || "";
   if ($("setting-base-url")) $("setting-base-url").value = s.baseUrl || "";
+  if ($("setting-model")) $("setting-model").value = s.model || "";
   if ($("setting-name")) $("setting-name").value = s.candidateName || "";
   if ($("setting-title")) $("setting-title").value = s.targetTitle || "";
   if ($("setting-location")) $("setting-location").value = s.location || "";
@@ -46,10 +70,9 @@ function loadSettingsIntoForm() {
 
 function collectSettingsFromForm() {
   return {
-    serviceUrl: ($("setting-service-url")?.value || DEFAULT_SERVICE_URL).trim(),
     apiKey: ($("setting-api-key")?.value || "").trim(),
-    model: ($("setting-model")?.value || "").trim(),
     baseUrl: ($("setting-base-url")?.value || "").trim(),
+    model: ($("setting-model")?.value || "").trim(),
     candidateName: ($("setting-name")?.value || "").trim(),
     targetTitle: ($("setting-title")?.value || "").trim(),
     location: ($("setting-location")?.value || "").trim(),
@@ -61,11 +84,6 @@ function collectSettingsFromForm() {
 function persistSettings(settings) {
   agentSettings = { ...agentSettings, ...settings };
   chrome.storage.local.set({ agentSettings });
-}
-
-/** Returns true if the user has set up a resume — used for onboarding nudge. */
-function hasProfile() {
-  return !!(agentSettings.resume && agentSettings.resume.trim().length > 50);
 }
 
 let chatHistory = [];
@@ -403,14 +421,80 @@ async function extractJobCards(tabId = currentTabId, targetCount = 3) {
 
 // ─── Feature 4: rankJobs ──────────────────────────────────────────────────────
 async function rankJobs(cards, config) {
-  const r = await fetch(`${getServiceUrl()}/rank`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cards, config, profile: getUserProfile() })
-  });
-  const data = await r.json();
-  if (!data.ok) throw new Error(data.error);
-  return data.ranked; // [{title, company, url, score, fitReason, risk}]
+  const targetCount = config?.targetCount ?? 3;
+  const minScore = config?.minScore ?? 70;
+  const name = (agentSettings.candidateName || "the candidate").trim();
+
+  const systemPrompt = [
+    buildProfileBlock(),
+    "",
+    "Rank the provided job cards from best to worst fit for this candidate.",
+    `Return exactly ${targetCount} jobs (or fewer if less are available).`,
+    `Only include jobs with match score >= ${minScore}.`,
+    "Return a JSON array only — no markdown, no explanation.",
+    "Format: [{\"title\",\"company\",\"url\",\"location\",\"score\"(0-100),\"fitReason\",\"risk\",\"easyApply\"(bool)}]",
+    "Do not invent jobs. Only use jobs from the provided list.",
+    `fitReason: 1 short sentence why this role fits ${name}.`,
+    "risk: 1 short sentence about the main concern (empty string if none).",
+  ].join("\n");
+
+  const cardList = cards.map((c, i) =>
+    `${i + 1}. Title: ${c.title || "(unknown)"} | Company: ${c.company || "(unknown)"} | ` +
+    `Location: ${c.location || "(unknown)"} | URL: ${c.url || ""} | EasyApply: ${c.easyApply ? "yes" : "no"}`
+  ).join("\n");
+
+  const userPrompt = `Job cards to rank:\n${cardList}\n\nKeyword context: ${config?.keyword || "AI roles"}`;
+
+  const raw = await callLLM([
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt }
+  ], { temperature: 0.2 });
+
+  // Extract JSON array from response
+  let ranked = [];
+  try {
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (match) ranked = JSON.parse(match[0]);
+  } catch (e) {
+    throw new Error(`Failed to parse ranking response: ${e.message}`);
+  }
+
+  ranked = ranked.filter(item => item.title && item.company && item.url && typeof item.score === "number");
+
+  // Supplement with remaining cards if minScore=0 and we're short
+  if (minScore === 0 && ranked.length < targetCount) {
+    const rankedUrls = new Set(ranked.map(item => normalizeJobUrl(item.url)));
+    const supplemental = cards
+      .filter(c => c.title && c.url && !rankedUrls.has(normalizeJobUrl(c.url)))
+      .slice(0, targetCount - ranked.length)
+      .map(c => ({
+        title: c.title || "(unknown)", company: c.company || "(unknown)",
+        url: c.url, location: c.location || "", score: 0,
+        fitReason: "Included from visible results to complete count.",
+        risk: "Review manually.", easyApply: c.easyApply || false,
+      }));
+    ranked = [...ranked, ...supplemental];
+  }
+
+  return ranked.filter(item => item.score >= minScore || minScore === 0).slice(0, targetCount);
+}
+
+/** Resolve a URL from the LLM reply against the known candidateLinks list. */
+function resolveNavigateUrl(raw, candidateLinks) {
+  if (!raw) return null;
+  const normalized = raw.startsWith("http") ? raw : `https://www.linkedin.com${raw}`;
+  // Exact match first
+  const exact = candidateLinks.find(l => l.href === normalized);
+  if (exact) return exact.href;
+  // Job ID match
+  const idMatch = normalized.match(/\/jobs\/view\/(\d+)/);
+  if (idMatch) {
+    const byId = candidateLinks.find(l => l.href.includes(`/jobs/view/${idMatch[1]}`));
+    if (byId) return byId.href;
+  }
+  // Return as-is if it looks like a LinkedIn job URL
+  if (/linkedin\.com\/jobs\/view\/\d+/.test(normalized)) return normalized;
+  return null;
 }
 
 function displayRankedJobs(ranked) {
@@ -1673,39 +1757,88 @@ async function sendChat(message) {
   const { text, url, links } = await getPageText();
 
   try {
-    const r = await fetch(`${getServiceUrl()}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, pageText: text, url, links, history: chatHistory.slice(-10), profile: getUserProfile() })
-    });
-    const data = await r.json();
-    console.log("[POPUP DEBUG] Server response:", JSON.stringify({ intent: data.intent, navigateUrl: data.navigateUrl, ok: data.ok }));
-    if (data.ok) {
-      // Clean navigation tags from displayed message
-      const cleanReply = data.reply
-        .replace(/\[NAVIGATE_AND_APPLY:\s*[^\]]+\]/gi, '')
-        .replace(/\[NAVIGATE:\s*[^\]]+\]/gi, '')
-        .trim();
-      if (cleanReply) addMessage("assistant", cleanReply);
-      if (data.intent === "navigate_and_apply" && data.navigateUrl) {
-        await handleNavigate(data.navigateUrl, true);
-      } else if (data.intent === "navigate" && data.navigateUrl) {
-        await handleNavigate(data.navigateUrl, false);
-      } else if (data.intent === "apply") {
-        const result = await handleEasyApplyFlow(null, currentTaskConfig?.applyMode || "review");
-        if (result.reason === "review_mode_stop") {
-          addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
-        } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
-          addMessage("system", `Easy Apply stopped: ${result.reason}`);
-        }
-      } else if (data.intent === "analyze") {
-        await handleAnalyze();
+    // Build the system prompt with the user's profile + page context
+    const candidateLinks = (Array.isArray(links) ? links : [])
+      .filter(l => l?.href?.includes("linkedin.com/jobs/view/"))
+      .slice(0, 20);
+
+    const systemPrompt = [
+      "You are a job search assistant embedded in a Chrome extension popup.",
+      buildProfileBlock(),
+      "",
+      "CAPABILITIES AND RULES:",
+      "1. You can read the current page content provided below.",
+      "2. To navigate to a job URL, write exactly: [NAVIGATE: url]",
+      "3. To navigate and then apply, write exactly: [NAVIGATE_AND_APPLY: url]",
+      "4. NEVER output raw JSON or fabricate URLs.",
+      "5. ONLY use URLs from the provided links list.",
+      "",
+      `Current page: ${url || "unknown"}`,
+      `LinkedIn job links (${candidateLinks.length}):`,
+      candidateLinks.length > 0
+        ? candidateLinks.map((l, i) => `${i + 1}. ${l.text || "(no title)"} => ${l.href}`).join("\n")
+        : "(none)",
+      "",
+      "Page content (first 5000 chars):",
+      (text || "").slice(0, 5000),
+      "",
+      "Keep responses concise. Use bullet points.",
+    ].join("\n");
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...chatHistory.filter(m => m.role !== "system").slice(-10).map(m => ({ role: m.role, content: m.content })),
+      { role: "user", content: message }
+    ];
+
+    const reply = await callLLM(messages, { temperature: 0.3 });
+    console.log("[POPUP DEBUG] LLM reply:", reply.slice(0, 200));
+
+    // ── Local intent parsing (mirrors what server.ts used to do) ──────────────
+    const navApplyMatch = reply.match(/\[NAVIGATE_AND_APPLY:\s*((?:https?:\/\/)?[^\]\s]+)\s*\]/i);
+    const navMatch     = reply.match(/\[NAVIGATE:\s*((?:https?:\/\/)?[^\]\s]+)\s*\]/i);
+    const applyIntent  = /i'll apply|applying now|let me apply|triggering apply|clicking apply/i.test(reply) ||
+                         /\bapply\b.*for (you|this|the job)/i.test(message);
+    const analyzeIntent = /\banalyz/i.test(message) && !applyIntent;
+
+    let intent = null;
+    let navigateUrl = null;
+    if (navApplyMatch) {
+      intent = "navigate_and_apply";
+      navigateUrl = resolveNavigateUrl(navApplyMatch[1], candidateLinks);
+    } else if (navMatch) {
+      intent = "navigate";
+      navigateUrl = resolveNavigateUrl(navMatch[1], candidateLinks);
+    } else if (applyIntent) {
+      intent = "apply";
+    } else if (analyzeIntent) {
+      intent = "analyze";
+    }
+
+    // Display reply, stripping the [NAVIGATE*] tags
+    const cleanReply = reply
+      .replace(/\[NAVIGATE_AND_APPLY:\s*[^\]]+\]/gi, "")
+      .replace(/\[NAVIGATE:\s*[^\]]+\]/gi, "")
+      .trim();
+    if (cleanReply) addMessage("assistant", cleanReply);
+
+    // Act on intent
+    if (intent === "navigate_and_apply" && navigateUrl) {
+      await handleNavigate(navigateUrl, true);
+    } else if (intent === "navigate" && navigateUrl) {
+      await handleNavigate(navigateUrl, false);
+    } else if (intent === "apply") {
+      const result = await handleEasyApplyFlow(null, currentTaskConfig?.applyMode || "review");
+      if (result.reason === "review_mode_stop") {
+        addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
+      } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
+        addMessage("system", `Easy Apply stopped: ${result.reason}`);
       }
-    } else {
-      addMessage("system", `Error: ${data.error}`);
+    } else if (intent === "analyze") {
+      await handleAnalyze();
     }
   } catch (e) {
-    addMessage("system", `Service error: ${e.message}`);
+    addMessage("system", `Error: ${e.message}`);
   }
 
   setChatBusy(false);
@@ -1717,28 +1850,28 @@ async function handleAnalyze(tabId = currentTabId, fallbackJob = null) {
 
   addMessage("system", "Analyzing...");
   try {
-    const r = await fetch(`${getServiceUrl()}/extract`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pageText: text, url })
-    });
-    const data = await r.json();
-    if (data.ok) {
-      const { jd, score } = data;
-      const title = isPlaceholderJobTitle(jd.title) ? fallbackJob?.title || jd.title : jd.title;
-      const company = isPlaceholderCompany(jd.company) ? fallbackJob?.company || jd.company : jd.company;
-      const reasons = Array.isArray(score?.reasons) ? score.reasons : [];
-      const description = String(descriptionText || jd.description || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 2400);
-      const msg = `📋 ${title} @ ${company}\n📍 ${jd.location || fallbackJob?.location || 'N/A'} | 💰 ${jd.salary?.raw || 'N/A'}\n\n⭐ Tier ${score?.tier || 'N/A'}\n${reasons.join('\n')}${description ? `\n\nJD:\n${description}${description.length >= 2400 ? "..." : ""}` : ""}`;
-      addMessage("assistant", msg);
-    } else {
-      addMessage("system", `Error: ${data.error}`);
-    }
+    const systemPrompt = [
+      buildProfileBlock(),
+      "",
+      "Evaluate the following job description for fit with the candidate above.",
+      "Return:",
+      "- Tier: A (strong fit — apply + DM) / B (good fit — apply) / C (weak fit — save for later) / D (poor fit — skip)",
+      "- 3–5 bullet points explaining the assessment",
+      "- One main risk or concern",
+      "Be concise. Plain text only.",
+    ].join("\n");
+
+    const jobContent = (descriptionText || text).replace(/\s+/g, " ").trim().slice(0, 4000);
+    const userPrompt = `Job page: ${url}\n\nJob description:\n${jobContent}`;
+
+    const reply = await callLLM([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ], { temperature: 0.2 });
+
+    addMessage("assistant", reply);
   } catch (e) {
-    addMessage("system", `Service error: ${e.message}`);
+    addMessage("system", `Error: ${e.message}`);
   }
 }
 
@@ -1922,24 +2055,14 @@ async function handleApply() {
   return { clicked: false, reason: "apply_button_not_found", pageUrl: lastPageUrl };
 }
 
-async function checkService() {
+function checkApiConfig() {
+  const hasKey = !!(agentSettings.apiKey && agentSettings.apiKey.trim());
+  $("service-status").className = hasKey ? "status-bar connected" : "status-bar disconnected";
+  $("status-text").textContent = hasKey ? "Ready" : "No API key — open ⚙️ Settings";
   const chatInput = $("chat-input");
   const sendButton = $("btn-send");
-  try {
-    const r = await fetch(`${getServiceUrl()}/health`, { signal: AbortSignal.timeout(2000) });
-    if (r.ok) {
-      $("service-status").className = "status-bar connected";
-      $("status-text").textContent = "Ready";
-      if (chatInput) chatInput.disabled = false;
-      if (sendButton && !chatBusy) sendButton.disabled = false;
-      return true;
-    }
-  } catch {}
-  $("service-status").className = "status-bar disconnected";
-  $("status-text").textContent = "Service offline — run: npm start";
   if (chatInput) chatInput.disabled = false;
   if (sendButton && !chatBusy) sendButton.disabled = false;
-  return false;
 }
 
 // Event listeners
@@ -2037,6 +2160,7 @@ if (saveSettingsBtn) {
   saveSettingsBtn.addEventListener("click", () => {
     const newSettings = collectSettingsFromForm();
     persistSettings(newSettings);
+    checkApiConfig(); // refresh status bar immediately
     const statusEl = $("settings-save-status");
     if (statusEl) {
       statusEl.textContent = "✅ Saved";
@@ -2046,11 +2170,10 @@ if (saveSettingsBtn) {
   });
 }
 
-// ─── Init: load settings first, then start service check ─────────────────────
+// ─── Init: load settings then check API config ────────────────────────────────
 chrome.storage.local.get("agentSettings", ({ agentSettings: saved }) => {
   if (saved) agentSettings = { ...agentSettings, ...saved };
-  checkService();
-  setInterval(checkService, 8000);
+  checkApiConfig();
 });
 
 // Lock the tab ID when popup opens — all operations use the last focused normal browser tab,
