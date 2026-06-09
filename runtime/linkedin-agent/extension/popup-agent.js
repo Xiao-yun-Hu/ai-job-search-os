@@ -1400,6 +1400,11 @@ async function handleNavigate(url, thenApply = false, options = {}) {
     }
     addMessage("system", "Page loaded.");
 
+    // Always bring the new tab into focus (unless caller opts out for background use)
+    if (openInNewTab && currentTabId && options.activateAfter !== false) {
+      chrome.tabs.update(currentTabId, { active: true });
+    }
+
     if (thenApply) {
       // Small extra wait, then drive the complete Easy Apply flow.
       await new Promise(r => setTimeout(r, 1000));
@@ -1413,9 +1418,6 @@ async function handleNavigate(url, thenApply = false, options = {}) {
       }
     }
 
-    if (options.activateAfter) {
-      chrome.tabs.update(currentTabId, { active: true });
-    }
     return currentTabId;
   } catch (e) {
     addMessage("system", `Navigation error: ${e.message}`);
