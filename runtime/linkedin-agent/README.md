@@ -19,23 +19,16 @@ No local server. No command line. Just install, configure, and go.
 
 ### Step 1 — Download the extension
 
-**Option A: Download ZIP (easiest)**
-1. Go to [github.com/Xiao-yun-Hu/ai-job-search-os](https://github.com/Xiao-yun-Hu/ai-job-search-os)
-2. Click **Code → Download ZIP**
-3. Unzip it anywhere on your computer
+**[⬇️ Download jobpilot-extension.zip](https://github.com/Xiao-yun-Hu/ai-job-search-os/releases/latest/download/jobpilot-extension.zip)**
 
-**Option B: Clone**
-```bash
-git clone https://github.com/Xiao-yun-Hu/ai-job-search-os.git
-```
+Unzip it — you get a single `extension/` folder. That's all you need.
 
 ### Step 2 — Load into Chrome
 
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable **Developer mode** (toggle in the top-right corner)
 3. Click **Load unpacked**
-4. Navigate to the unzipped folder and select:  
-   `runtime/linkedin-agent/extension/`
+4. Select the `extension/` folder you just unzipped
 
 The **JobPilot** icon will appear in your Chrome toolbar.
 
