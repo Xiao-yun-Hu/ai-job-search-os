@@ -46,7 +46,14 @@ node_modules/
 
 # Internal dev / Codex task files — local only, never publish
 CODEX_*.md
-CODEX_*.md
 TEST_RESULTS*.md
 HOW_TO_USE.md
 start-chrome.sh
+
+# Extension test/dev files — not needed for installation
+runtime/linkedin-agent/extension/tests/
+runtime/linkedin-agent/extension/fixtures/
+runtime/linkedin-agent/extension/popup.js
+runtime/linkedin-agent/extension/package.json
+runtime/linkedin-agent/extension/package-lock.json
+runtime/policy.yaml
