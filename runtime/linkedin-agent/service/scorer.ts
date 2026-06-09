@@ -1,0 +1,324 @@
+export type GateResult = "pass" | "fail" | "unknown";
+export type SignalStrength = "strong" | "medium" | "weak" | "unknown";
+export type Tier = "A" | "B" | "C" | "D" | "pending";
+export type Action = "apply" | "save" | "skip" | "review";
+
+export type Salary = {
+  raw?: string;
+  min?: number;
+  max?: number;
+  currency?: string;
+};
+
+export type JD = {
+  id?: string;
+  title: string;
+  company: string;
+  location: string;
+  salary: Salary;
+  description: string;
+  tags?: string[];
+  url?: string;
+};
+
+export type Signals = {
+  salary_gate: GateResult;
+  ai_native: GateResult;
+  role_alignment: SignalStrength;
+  ai_systems: SignalStrength;
+  business_workflow: SignalStrength;
+  seniority: SignalStrength;
+  company_context: SignalStrength;
+  vibe: SignalStrength;
+};
+
+export type Score = {
+  jdId?: string;
+  scoredAt: number;
+  tier: Tier;
+  signals: Signals;
+  reasons: string[];
+  action: Action;
+  followup: boolean;
+};
+
+export function scoreJD(jd: JD): Score {
+  const signals = {
+    salary_gate: evalSalaryGate(jd),
+    ai_native: evalAINative(jd),
+    role_alignment: evalRoleAlignment(jd),
+    ai_systems: evalAISystems(jd),
+    business_workflow: evalBusinessWorkflow(jd),
+    seniority: evalSeniority(jd),
+    company_context: evalCompanyContext(jd),
+    vibe: evalVibe(jd),
+  };
+  const tier = assignTier(signals);
+  const action = assignAction(tier);
+
+  return {
+    jdId: jd.id,
+    scoredAt: Date.now(),
+    tier,
+    signals,
+    reasons: buildReasons(signals, jd),
+    action: action.action,
+    followup: action.followup,
+  };
+}
+
+export function evalSalaryGate(jd: JD): GateResult {
+  const salary = jd.salary || {};
+  const min = salary.min;
+  const max = salary.max;
+
+  if (min == null && max == null) return "unknown";
+  if (max == null && min != null) return "pass";
+
+  const threshold = salary.currency === "SGD" ? 6000 : 30000;
+  return max != null && max < threshold ? "fail" : "pass";
+}
+
+export function evalAINative(jd: JD): GateResult {
+  const text = [
+    jd.description || "",
+    jd.company || "",
+    ...(Array.isArray(jd.tags) ? jd.tags : []),
+  ].join(" ").toLowerCase();
+  const passKeys = [
+    "agent os", "agent framework", "multi-agent", "evaluation infra",
+    "memory substrate", "workflow orchestration", "llm platform",
+    "agent platform", "decision system", "多智能体", "agent框架",
+    "agent编排", "agentic",
+  ];
+  const excludeKeys = [
+    "传统电商", "零售业", "制造业", "汽车", "能源", "房地产", "地产",
+    "erp", "crm", "降本增效", "智能客服", "oa自动化", "ai赋能",
+  ];
+
+  if (passKeys.some((key) => text.includes(key))) return "pass";
+  if (excludeKeys.some((key) => text.includes(key))) return "fail";
+  return "unknown";
+}
+
+export function evalRoleAlignment(jd: JD): SignalStrength {
+  const text = `${jd.title || ""} ${(jd.description || "").slice(0, 500)}`.toLowerCase();
+  const strongKeys = [
+    "agent architect", "multi-agent", "llm platform", "ai platform architect",
+    "agent engineer", "platform architect", "智能体架构", "agent架构",
+  ];
+  const mediumKeys = [
+    "ai engineer", "ml engineer", "machine learning engineer", "nlp engineer",
+    "ai researcher", "ai scientist",
+  ];
+  const hasWeakRole = ["software engineer", "backend engineer", "data engineer"]
+    .some((key) => text.includes(key));
+  const hasWeakAI = text.includes("ai") || text.includes("llm");
+
+  if (strongKeys.some((key) => text.includes(key))) return "strong";
+  if (mediumKeys.some((key) => text.includes(key))) return "medium";
+  if (hasWeakRole && hasWeakAI) return "weak";
+  return "unknown";
+}
+
+export function evalAISystems(jd: JD): SignalStrength {
+  const text = [
+    jd.description || "",
+    ...(Array.isArray(jd.tags) ? jd.tags : []),
+  ].join(" ").toLowerCase();
+  const strongKeys = [
+    "agent framework", "multi-agent", "rag", "evaluation pipeline",
+    "eval infra", "memory system", "orchestration", "function calling",
+    "langchain", "langraph", "autogen", "编排", "知识图谱",
+  ];
+  const mediumKeys = [
+    "llm integration", "prompt engineering", "fine-tuning",
+    "vector database", "embedding", "大模型",
+  ];
+  const strongHits = strongKeys.filter((key) => text.includes(key)).length;
+
+  if (strongHits >= 2) return "strong";
+  if (strongHits >= 1) return "medium";
+  if (mediumKeys.some((key) => text.includes(key))) return "medium";
+  if (text.includes("ai") || text.includes("machine learning")) return "weak";
+  return "unknown";
+}
+
+export function evalBusinessWorkflow(jd: JD): SignalStrength {
+  const text = (jd.description || "").toLowerCase();
+  const strongKeys = [
+    "end-to-end", "platform-level", "cross-functional", "technical lead",
+    "architect the", "own the", "负责设计", "全链路", "平台级",
+  ];
+  const mediumKeys = [
+    "work with pm", "collaborate with", "feature ownership", "参与设计",
+  ];
+
+  if (text.length < 100) return "unknown";
+  if (strongKeys.some((key) => text.includes(key))) return "strong";
+  if (mediumKeys.some((key) => text.includes(key))) return "medium";
+  return "weak";
+}
+
+export function evalSeniority(jd: JD): SignalStrength {
+  const text = `${jd.title || ""} ${jd.description || ""}`.toLowerCase();
+  const strongKeys = [
+    "8+ year", "10+ year", "staff engineer", "principal", "architect",
+    "tech lead", "senior staff", "8年", "10年", "资深", "专家",
+  ];
+  const mediumKeys = [
+    "5+ year", "6+ year", "7+ year", "senior", "mid-senior",
+    "5年", "6年", "7年",
+  ];
+  const weakKeys = [
+    "0-3 year", "1-2 year", "junior", "entry", "fresh", "应届", "初级",
+  ];
+
+  if (strongKeys.some((key) => text.includes(key))) return "strong";
+  if (mediumKeys.some((key) => text.includes(key))) return "medium";
+  if (weakKeys.some((key) => text.includes(key))) return "weak";
+  return "unknown";
+}
+
+export function evalCompanyContext(jd: JD): SignalStrength {
+  const text = `${jd.description || ""} ${jd.company || ""}`.toLowerCase();
+  const aiSignals = ["agent", "llm", "ai-native", "ai native"];
+  const strongStage = [
+    "series a", "series b", "seed stage", "early stage", "founding team",
+    "a轮", "b轮", "初创",
+  ];
+  const mediumKeys = [
+    "series c", "series d", "well-funded", "anthropic", "openai",
+    "mistral", "cohere", "together ai", "c轮",
+  ];
+  const weakKeys = [
+    "alibaba", "tencent", "baidu", "bytedance", "microsoft", "google",
+    "amazon", "阿里", "腾讯", "百度", "字节",
+  ];
+
+  if (
+    strongStage.some((key) => text.includes(key)) &&
+    aiSignals.some((key) => text.includes(key))
+  ) {
+    return "strong";
+  }
+  if (mediumKeys.some((key) => text.includes(key))) return "medium";
+  if (weakKeys.some((key) => text.includes(key))) return "weak";
+  return "unknown";
+}
+
+export function evalVibe(jd: JD): SignalStrength {
+  const text = (jd.description || "").toLowerCase();
+  const weakKeys = ["on-site only", "996", "overtime required", "线下办公", "坐班"];
+  const strongKeys = [
+    "remote", "hybrid", "async", "flexible", "work from anywhere", "远程", "弹性",
+  ];
+
+  if (text.length < 50) return "unknown";
+  if (weakKeys.some((key) => text.includes(key))) return "weak";
+  if (strongKeys.some((key) => text.includes(key))) return "strong";
+  return "medium";
+}
+
+export function assignTier(signals: Signals): Tier {
+  const values = Object.values(signals);
+  const unknownCount = values.filter((value) => value === "unknown").length;
+  const strongCount = values.filter((value) => value === "strong").length;
+  const role = signals.role_alignment;
+  const aiSys = signals.ai_systems;
+  const biz = signals.business_workflow;
+  const sen = signals.seniority;
+  const co = signals.company_context;
+  const vibe = signals.vibe;
+
+  if (values.includes("fail")) return "D";
+  if (unknownCount >= 3 && (role === "unknown" || aiSys === "unknown")) return "pending";
+  if (
+    role === "strong" &&
+    ["strong", "medium"].includes(aiSys) &&
+    biz === "strong" &&
+    ["strong", "medium"].includes(sen) &&
+    ["strong", "medium"].includes(co) &&
+    ["strong", "medium"].includes(vibe)
+  ) {
+    return "A";
+  }
+  if (
+    ["strong", "medium"].includes(role) &&
+    ["strong", "medium"].includes(aiSys) &&
+    strongCount >= 2
+  ) {
+    return "B";
+  }
+  return "C";
+}
+
+export function assignAction(tier: Tier): { action: Action; followup: boolean } {
+  const map: Record<Tier, { action: Action; followup: boolean }> = {
+    A: { action: "apply", followup: true },
+    B: { action: "apply", followup: false },
+    C: { action: "save", followup: false },
+    D: { action: "skip", followup: false },
+    pending: { action: "review", followup: false },
+  };
+  return map[tier];
+}
+
+export function buildReasons(signals: Signals, jd: JD): string[] {
+  const reasons: string[] = [];
+  const labels: Record<keyof Signals, string> = {
+    salary_gate: "salary",
+    ai_native: "ai-native",
+    role_alignment: "role alignment",
+    ai_systems: "ai systems",
+    business_workflow: "business workflow",
+    seniority: "seniority",
+    company_context: "company context",
+    vibe: "vibe",
+  };
+
+  (Object.keys(labels) as Array<keyof Signals>).forEach((key) => {
+    const value = signals[key];
+    if (value === "unknown") return;
+
+    if (key === "salary_gate") {
+      const salary = jd.salary || {};
+      const currency = salary.currency && salary.currency !== "unknown"
+        ? ` ${salary.currency}`
+        : "";
+      let range = "";
+      const min = salary.min;
+      const max = salary.max;
+
+      if (min != null || max != null) {
+        const minText = min == null
+          ? null
+          : min >= 1000
+            ? `${Number.isInteger(min / 1000) ? min / 1000 : +(min / 1000).toFixed(1)}K`
+            : String(min);
+        const maxText = max == null
+          ? null
+          : max >= 1000
+            ? `${Number.isInteger(max / 1000) ? max / 1000 : +(max / 1000).toFixed(1)}K`
+            : String(max);
+
+        if (minText && maxText) {
+          const displayMin = minText.endsWith("K") && maxText.endsWith("K")
+            ? minText.slice(0, -1)
+            : minText;
+          range = ` (${displayMin}-${maxText}${currency})`;
+        } else if (minText) range = ` (${minText}+${currency})`;
+        else if (maxText) range = ` (up to ${maxText}${currency})`;
+      } else if (salary.raw) {
+        range = ` (${salary.raw})`;
+      }
+
+      reasons.push(`${labels[key]}: ${value}${range}`);
+      return;
+    }
+
+    reasons.push(`${labels[key]}: ${value}`);
+  });
+
+  return reasons;
+}

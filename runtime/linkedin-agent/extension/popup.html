@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Job Agent</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="service-status" class="status-bar disconnected">
+    ⚡ <span id="status-text">Connecting...</span>
+  </div>
+
+  <div id="chat-container">
+    <div id="chat-messages"></div>
+  </div>
+
+  <div id="history-panel" style="display: none;">
+    <div id="history-list"></div>
+  </div>
+
+  <div id="applied-panel" style="display: none;">
+    <div id="applied-list"></div>
+  </div>
+
+  <div id="quick-actions">
+    <button id="btn-history" title="Show/hide chat history">📋 History</button>
+    <button id="btn-applied" title="Show/hide applied jobs">📊 Applied <span id="applied-count"></span></button>
+    <button id="btn-clear" title="Clear chat">🗑️</button>
+  </div>
+
+  <div id="input-area">
+    <input id="chat-input" type="text" placeholder="Ask anything about this job..." />
+    <button id="btn-send">→</button>
+  </div>
+
+  <script src="popup-agent.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "ai-job-search-plugin",
+  "version": "1.0.0",
+  "main": "background.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "jsdom": "^27.0.1"
+  }
+}
