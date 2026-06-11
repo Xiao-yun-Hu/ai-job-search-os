@@ -94,6 +94,7 @@ let currentTaskConfig = null; // { keyword, targetCount, minScore, applyMode, st
 let pendingSubmitConfirm = false; // true when waiting for user to "confirm submit" or "cancel"
 let lastApplyJobTitle = "";
 let lastApplyJobCompany = "";
+let lastApplyJobUrl = "";
 let chatBusy = false;
 
 function setChatBusy(busy) {
@@ -586,15 +587,18 @@ function parseCurrentPageApplyIntent(message) {
 async function handleCurrentPageApply(message) {
   addMessage("assistant", "Applying to the currently selected job on the page.");
   const result = await handleEasyApplyFlow(null, resolveApplyMode(message));
-  if (result.jobTitle)   lastApplyJobTitle   = result.jobTitle;
-  if (result.jobCompany) lastApplyJobCompany = result.jobCompany;
+  const meta = await getCurrentJobMeta();
+  if (meta.title)   lastApplyJobTitle   = meta.title;
+  if (meta.company) lastApplyJobCompany = meta.company;
+  if (meta.url)     lastApplyJobUrl     = meta.url;
   if (result.status === "submitted") {
+    recordAppliedJob(lastApplyJobTitle, lastApplyJobCompany, lastApplyJobUrl, false);
     addMessage("assistant", "Application submitted.");
     return;
   }
   if (result.reason === "review_mode_stop") {
-    const title = result.jobTitle || lastApplyJobTitle || "";
-    const company = result.jobCompany || lastApplyJobCompany || "";
+    const title = lastApplyJobTitle || "";
+    const company = lastApplyJobCompany || "";
     const jobLine = (title || company) ? `**${title}${company ? " @ " + company : ""}**\n` : "";
     addMessage("assistant",
       `✅ Application ready to submit:\n${jobLine}\n` +
@@ -1578,7 +1582,12 @@ async function handleNavigate(url, thenApply = false, options = {}) {
       // Small extra wait, then drive the complete Easy Apply flow.
       await new Promise(r => setTimeout(r, 1000));
       const result = await handleEasyApplyFlow(null, options.applyMode || currentTaskConfig?.applyMode || "review");
+      const meta = await getCurrentJobMeta();
+      if (meta.title)   lastApplyJobTitle   = meta.title;
+      if (meta.company) lastApplyJobCompany = meta.company;
+      if (meta.url)     lastApplyJobUrl     = meta.url;
       if (result.status === "submitted") {
+        recordAppliedJob(lastApplyJobTitle, lastApplyJobCompany, lastApplyJobUrl, false);
         addMessage("assistant", "Application submitted.");
       } else if (result.reason === "review_mode_stop") {
         addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
@@ -1663,6 +1672,57 @@ function enrichAppliedJob(job) {
     company: !isPlaceholderCompany(job.company) ? job.company : (ranked?.company || "Unknown Company"),
     url: canonicalLinkedInJobUrl(job.url),
   };
+}
+
+/** Read job title/company/URL off the current tab — used to attribute a confirmed submission. */
+async function getCurrentJobMeta() {
+  if (!currentTabId) return { title: "", company: "", url: "" };
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      func: () => {
+        const title = document.querySelector(
+          [
+            'h1.t-24.job-details-jobs-unified-top-card__job-title',
+            'h1.jobs-unified-top-card__job-title',
+            '.job-details-jobs-unified-top-card__job-title h1',
+            '.job-details-jobs-unified-top-card__job-title h2',
+            '.job-details-jobs-unified-top-card__job-title',
+            '.jobs-unified-top-card__job-title',
+            'a.job-details-jobs-unified-top-card__job-title-link',
+            '[data-test-job-title]',
+            'main h1',
+            'main h2'
+          ].join(', ')
+        )?.textContent?.replace(/\s+/g, ' ').trim() || "";
+
+        let company = document.querySelector(
+          [
+            '.job-details-jobs-unified-top-card__company-name a',
+            '.jobs-unified-top-card__company-name a',
+            '.job-details-jobs-unified-top-card__company-name',
+            '.jobs-unified-top-card__company-name',
+            'a[class*="company-name"]',
+            '[class*="company-name"]'
+          ].join(', ')
+        )?.textContent?.replace(/\s+/g, ' ').trim() || "";
+
+        if (!company) {
+          const interopOutlet = document.querySelector('#interop-outlet');
+          const modal = (interopOutlet?.shadowRoot?.querySelector('[role="dialog"], .jobs-easy-apply-content')) ||
+            document.querySelector('[role="dialog"], .jobs-easy-apply-content');
+          const modalHeading = modal?.querySelector('h1, h2, [class*="modal__title"]')?.textContent
+            ?.replace(/\s+/g, ' ').trim() || "";
+          company = modalHeading.match(/^Apply to\s+(.+)$/i)?.[1]?.trim() || "";
+        }
+
+        return { title, company, url: window.location.href };
+      }
+    });
+    return results[0]?.result || { title: "", company: "", url: "" };
+  } catch {
+    return { title: "", company: "", url: "" };
+  }
 }
 
 function recordAppliedJob(title, company, url, external = false) {
@@ -1763,6 +1823,7 @@ async function sendChat(message) {
       pendingSubmitConfirm = false;
       addMessage("system", "Submitting application...");
       await clickSubmit();
+      recordAppliedJob(lastApplyJobTitle, lastApplyJobCompany, lastApplyJobUrl, false);
       addMessage("assistant", `✅ Application submitted: ${lastApplyJobTitle}${lastApplyJobCompany ? " @ " + lastApplyJobCompany : ""}`);
     } else {
       pendingSubmitConfirm = false;
@@ -1914,7 +1975,14 @@ async function sendChat(message) {
       await handleNavigate(navigateUrl, false);
     } else if (intent === "apply") {
       const result = await handleEasyApplyFlow(null, currentTaskConfig?.applyMode || "review");
-      if (result.reason === "review_mode_stop") {
+      const meta = await getCurrentJobMeta();
+      if (meta.title)   lastApplyJobTitle   = meta.title;
+      if (meta.company) lastApplyJobCompany = meta.company;
+      if (meta.url)     lastApplyJobUrl     = meta.url;
+      if (result.status === "submitted") {
+        recordAppliedJob(lastApplyJobTitle, lastApplyJobCompany, lastApplyJobUrl, false);
+        addMessage("assistant", "Application submitted.");
+      } else if (result.reason === "review_mode_stop") {
         addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
       } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
         addMessage("system", formatEasyApplyStopMessage(result));
