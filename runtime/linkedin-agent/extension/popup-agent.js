@@ -836,10 +836,11 @@ async function detectModalState() {
 
 async function handleModalState(state) {
   if (!currentTabId) return { advanced: false, reason: "no_tab" };
+  const locationValue = (agentSettings.location || "").split(",")[0].trim();
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: currentTabId },
-      func: (modalState) => {
+      func: async (modalState, locationValue) => {
         // LinkedIn renders Easy Apply inside Shadow DOM (#interop-outlet).
         // Do NOT fall back to document.querySelector — LinkedIn's chat overlay
         // also has role="dialog" and would cause false-positive matches.
@@ -947,7 +948,37 @@ async function handleModalState(state) {
           }
         }
 
+        // Fill "City"/"Location" typeahead fields with the candidate's preferred location.
+        // LinkedIn renders this as a combobox with an async suggestion dropdown — typing
+        // alone leaves the field invalid, so we wait for suggestions and click the first one.
+        async function fillLocationField() {
+          if (!locationValue) return;
+          const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+          const inputs = Array.from(modal.querySelectorAll('input[type="text"], input:not([type]), input[role="combobox"]'));
+          for (const input of inputs) {
+            if ((input.value || '').trim() !== '') continue;
+            const labelEl = input.id ? modal.querySelector(`label[for="${input.id}"]`) : null;
+            const labelText = (labelEl?.textContent || input.getAttribute('aria-label') || input.getAttribute('placeholder') || '').toLowerCase();
+            if (!/city|location|based\s*in|where\s+are\s+you/i.test(labelText)) continue;
+
+            if (nativeSetter) nativeSetter.call(input, locationValue);
+            else input.value = locationValue;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Wait for the typeahead suggestion list, then select the first option
+            // so LinkedIn accepts the value as a valid geo location.
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const listbox = document.getElementById(input.getAttribute('aria-owns')) ||
+              modal.querySelector('[role="listbox"]') ||
+              document.querySelector('[role="listbox"]');
+            const option = listbox?.querySelector('[role="option"], li');
+            if (option) option.click();
+          }
+        }
+
         if (modalState === "contact_info") {
+          await fillLocationField();
           if (hasEmptyRequiredFields()) return { advanced: false, reason: "required_field_empty" };
           return clickNext() ? { advanced: true } : { advanced: false, reason: "next_button_not_found" };
         }
@@ -987,6 +1018,7 @@ async function handleModalState(state) {
           }
 
           // Auto-fill numeric experience/skill fields and dropdowns before checking for empties
+          await fillLocationField();
           fillNumericExperienceFields();
           fillSelectDropdowns();
 
@@ -1008,6 +1040,7 @@ async function handleModalState(state) {
             else firstResume.click();
           }
 
+          await fillLocationField();
           fillNumericExperienceFields();
           fillSelectDropdowns();
           answerSimpleRadios();
@@ -1022,7 +1055,7 @@ async function handleModalState(state) {
 
         return { advanced: false, reason: "unhandled_state" };
       },
-      args: [state]
+      args: [state, locationValue]
     });
     return results[0]?.result || { advanced: false, reason: "script_error" };
   } catch (e) {
@@ -1469,9 +1502,18 @@ function openJobTab(url) {
 }
 
 async function handleNavigate(url, thenApply = false, options = {}) {
-  if (!url.startsWith('https://www.linkedin.com/')) {
-    addMessage("system", "Navigation blocked — only LinkedIn URLs are allowed.");
-    return null;
+  // The ranking LLM sometimes returns a slightly altered URL (regional subdomain,
+  // truncated path, etc.). If it's not a recognizable LinkedIn URL, try to recover
+  // the original by matching the job ID against the saved ranked jobs before giving up.
+  if (!/^https:\/\/[\w-]+\.linkedin\.com\//i.test(url)) {
+    const jobId = getLinkedInJobId(url);
+    const matched = jobId && getRankedJobs().find((job) => getLinkedInJobId(job.url) === jobId);
+    if (matched?.url) {
+      url = matched.url;
+    } else {
+      addMessage("system", `Navigation blocked — not a recognizable LinkedIn URL (got: ${url})`);
+      return null;
+    }
   }
 
   const openInNewTab = options.openInNewTab !== false;
