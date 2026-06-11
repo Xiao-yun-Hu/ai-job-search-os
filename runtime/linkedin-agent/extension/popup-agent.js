@@ -92,6 +92,7 @@ let searchTabId = null;
 let appliedJobs = [];
 let currentTaskConfig = null; // { keyword, targetCount, minScore, applyMode, step, extractedCards, rankedJobs }
 let pendingSubmitConfirm = false; // true when waiting for user to "confirm submit" or "cancel"
+let pendingFieldAnswers = null; // { fields: [...], mode } when waiting for user to answer fields we couldn't auto-fill
 let lastApplyJobTitle = "";
 let lastApplyJobCompany = "";
 let lastApplyJobUrl = "";
@@ -545,6 +546,19 @@ function formatEasyApplyStopMessage(result) {
   return `Easy Apply stopped: ${result.reason}`;
 }
 
+// Ask the user how to answer fields we couldn't fill ourselves (e.g. "Language 1"
+// dropdowns), then resume the flow once they reply. The reply is parsed by
+// parseFieldAnswers() and applied via fillNamedFields() in sendChat().
+function promptForFieldAnswers(result, mode) {
+  pendingFieldAnswers = { fields: result.fields, mode };
+  const fieldLines = result.fields.map((f) => `• ${f}`).join("\n");
+  const exampleLines = result.fields.map((f) => `${f}: <your answer>`).join("\n");
+  addMessage("assistant",
+    `I'm stuck on the "${result.finalState.replace(/_/g, " ")}" step — I'm not sure how to answer:\n${fieldLines}\n\n` +
+    `Reply with your answers, one per line, like:\n${exampleLines}`
+  );
+}
+
 function getRankedJobs() {
   return Array.isArray(currentTaskConfig?.rankedJobs) ? currentTaskConfig.rankedJobs : [];
 }
@@ -576,6 +590,28 @@ function parseContinuationIntent(message) {
   return { count };
 }
 
+// Parse a user's reply to promptForFieldAnswers() into [{label, value}] pairs.
+// Accepts "Label: value" / "Label - value" / "Label = value" lines (one per
+// field), or a comma/newline-separated list of bare values when the count
+// matches `fields` exactly (positional fallback).
+function parseFieldAnswers(message, fields) {
+  const lines = message.split(/\r?\n|;/).map((l) => l.trim()).filter(Boolean);
+  const pairs = [];
+  for (const line of lines) {
+    const m = line.match(/^(.+?)\s*[:：=]\s*(.+)$/);
+    if (m) pairs.push({ label: m[1].trim(), value: m[2].trim() });
+  }
+  if (pairs.length > 0) return pairs;
+
+  if (fields?.length) {
+    const values = message.split(/[,，\n]/).map((v) => v.trim()).filter(Boolean);
+    if (values.length === fields.length) {
+      return fields.map((label, i) => ({ label, value: values[i] }));
+    }
+  }
+  return [];
+}
+
 function parseCurrentPageApplyIntent(message) {
   if (!message || typeof message !== "string") return false;
   if (!shouldApplyRankedReference(message) && !/\bapply\b|submit|继续申请|现在申请|申请这个|申请当前|投这个|投当前/i.test(message)) {
@@ -586,7 +622,8 @@ function parseCurrentPageApplyIntent(message) {
 
 async function handleCurrentPageApply(message) {
   addMessage("assistant", "Applying to the currently selected job on the page.");
-  const result = await handleEasyApplyFlow(null, resolveApplyMode(message));
+  const mode = resolveApplyMode(message);
+  const result = await handleEasyApplyFlow(null, mode);
   const meta = await getCurrentJobMeta();
   if (meta.title)   lastApplyJobTitle   = meta.title;
   if (meta.company) lastApplyJobCompany = meta.company;
@@ -611,6 +648,10 @@ async function handleCurrentPageApply(message) {
   }
   if (result.reason === "openSDUI_apply_redirect") {
     addMessage("system", "This Easy Apply button opens LinkedIn's full-page apply flow instead of the in-page modal. I reached the redirect path, but this flow still needs separate automation support.");
+    return;
+  }
+  if (result.reason === "required_field_empty" && result.fields?.length > 0) {
+    promptForFieldAnswers(result, mode);
     return;
   }
   if (result.reason && !["external_apply_opened"].includes(result.reason)) {
@@ -1160,6 +1201,102 @@ async function clickSubmit() {
   });
 }
 
+// Fill fields the user told us how to answer (via promptForFieldAnswers / parseFieldAnswers).
+// `answers` is [{label, value}] where `label` matches a string previously returned by
+// getEmptyRequiredFieldLabels(). Returns { filled: [...], notFound: [...] }.
+async function fillNamedFields(answers) {
+  if (!currentTabId) return { filled: [], notFound: answers.map((a) => a.label) };
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: currentTabId },
+      func: async (answers) => {
+        const interopOutlet = document.querySelector('#interop-outlet');
+        const shadowRoot = interopOutlet?.shadowRoot;
+        const modal = (shadowRoot && (
+            shadowRoot.querySelector('.jobs-easy-apply-content') ||
+            shadowRoot.querySelector('[aria-labelledby*="easy-apply"], [aria-label*="Easy Apply"]') ||
+            shadowRoot.querySelector('[role="dialog"]')
+          )) ||
+          document.querySelector('.jobs-easy-apply-modal[role="dialog"], .jobs-easy-apply-content') ||
+          null;
+        if (!modal) return { filled: [], notFound: answers.map((a) => a.label) };
+
+        const nativeInputSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        const nativeSelectSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set;
+
+        function labelFor(element) {
+          const labelEl = element.id ? modal.querySelector(`label[for="${element.id}"]`) : null;
+          return (labelEl?.textContent || element.getAttribute('aria-label') || element.getAttribute('placeholder') || element.name || element.id || '')
+            .replace(/\s+/g, ' ').trim();
+        }
+
+        const candidateFields = Array.from(modal.querySelectorAll(
+          'input[required], select[required], textarea[required], [aria-required="true"], [aria-invalid="true"]'
+        ));
+
+        const filled = [];
+        const notFound = [];
+
+        for (const { label, value } of answers) {
+          const wanted = (label || '').toLowerCase();
+          const target = candidateFields.find((el) => {
+            const elLabel = labelFor(el).toLowerCase();
+            return elLabel === wanted || elLabel.includes(wanted) || wanted.includes(elLabel);
+          });
+          if (!target) { notFound.push(label); continue; }
+
+          if (target.tagName === 'SELECT') {
+            const wantedVal = (value || '').toLowerCase();
+            const opt = Array.from(target.options).find((o) =>
+              o.text.trim().toLowerCase() === wantedVal ||
+              o.text.trim().toLowerCase().includes(wantedVal) ||
+              o.value.toLowerCase() === wantedVal
+            );
+            if (!opt) { notFound.push(label); continue; }
+            if (nativeSelectSetter) nativeSelectSetter.call(target, opt.value);
+            else target.value = opt.value;
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+            filled.push(label);
+          } else if (target.type === 'radio' || target.type === 'checkbox') {
+            const fs = target.closest('fieldset');
+            const options = fs ? Array.from(fs.querySelectorAll('input[type="radio"], input[type="checkbox"]')) : [target];
+            const wantedVal = (value || '').toLowerCase();
+            const opt = options.find((o) => {
+              const t = (o.value || o.closest('label')?.textContent || '').trim().toLowerCase();
+              return t === wantedVal || t.includes(wantedVal);
+            });
+            if (!opt) { notFound.push(label); continue; }
+            opt.click();
+            filled.push(label);
+          } else {
+            if (nativeInputSetter && target.tagName === 'INPUT') nativeInputSetter.call(target, value);
+            else target.value = value;
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Typeahead/combobox fields need a suggestion clicked to register as valid.
+            if (target.getAttribute('role') === 'combobox' || target.getAttribute('aria-owns')) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              const listbox = document.getElementById(target.getAttribute('aria-owns')) ||
+                modal.querySelector('[role="listbox"]') ||
+                document.querySelector('[role="listbox"]');
+              const options = listbox ? Array.from(listbox.querySelectorAll('[role="option"], li')) : [];
+              const match = options.find((o) => o.textContent.toLowerCase().includes((value || '').toLowerCase())) || options[0];
+              if (match) match.click();
+            }
+            filled.push(label);
+          }
+        }
+        return { filled, notFound };
+      },
+      args: [answers]
+    });
+    return results[0]?.result || { filled: [], notFound: answers.map((a) => a.label) };
+  } catch {
+    return { filled: [], notFound: answers.map((a) => a.label) };
+  }
+}
+
 /**
  * Drives the LinkedIn Easy Apply modal through all steps.
  * mode: "review" (stop before submit) | "auto_submit" (submit if validation passes)
@@ -1593,7 +1730,8 @@ async function handleNavigate(url, thenApply = false, options = {}) {
     if (thenApply) {
       // Small extra wait, then drive the complete Easy Apply flow.
       await new Promise(r => setTimeout(r, 1000));
-      const result = await handleEasyApplyFlow(null, options.applyMode || currentTaskConfig?.applyMode || "review");
+      const mode = options.applyMode || currentTaskConfig?.applyMode || "review";
+      const result = await handleEasyApplyFlow(null, mode);
       const meta = await getCurrentJobMeta();
       if (meta.title)   lastApplyJobTitle   = meta.title;
       if (meta.company) lastApplyJobCompany = meta.company;
@@ -1603,6 +1741,8 @@ async function handleNavigate(url, thenApply = false, options = {}) {
         addMessage("assistant", "Application submitted.");
       } else if (result.reason === "review_mode_stop") {
         addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
+      } else if (result.reason === "required_field_empty" && result.fields?.length > 0) {
+        promptForFieldAnswers(result, mode);
       } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
         addMessage("system", formatEasyApplyStopMessage(result));
       }
@@ -1845,6 +1985,42 @@ async function sendChat(message) {
     return;
   }
 
+  // Resume Easy Apply after the user answers fields we couldn't fill ourselves
+  if (pendingFieldAnswers) {
+    const { fields, mode } = pendingFieldAnswers;
+    const answers = parseFieldAnswers(message, fields);
+    if (answers.length === 0) {
+      addMessage("system",
+        `I couldn't match that to the pending fields. Please reply one per line, like:\n${fields.map((f) => `${f}: <your answer>`).join("\n")}`
+      );
+      setChatBusy(false);
+      return;
+    }
+    pendingFieldAnswers = null;
+    addMessage("system", "Filling in your answers...");
+    const fillResult = await fillNamedFields(answers);
+    if (fillResult.notFound?.length > 0) {
+      addMessage("system", `Couldn't match these to a field on the page: ${fillResult.notFound.join(", ")}. You may need to fill them in manually.`);
+    }
+    const result = await handleEasyApplyFlow(null, mode);
+    const meta = await getCurrentJobMeta();
+    if (meta.title)   lastApplyJobTitle   = meta.title;
+    if (meta.company) lastApplyJobCompany = meta.company;
+    if (meta.url)     lastApplyJobUrl     = meta.url;
+    if (result.status === "submitted") {
+      recordAppliedJob(lastApplyJobTitle, lastApplyJobCompany, lastApplyJobUrl, false);
+      addMessage("assistant", "Application submitted.");
+    } else if (result.reason === "review_mode_stop") {
+      addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
+    } else if (result.reason === "required_field_empty" && result.fields?.length > 0) {
+      promptForFieldAnswers(result, mode);
+    } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
+      addMessage("system", formatEasyApplyStopMessage(result));
+    }
+    setChatBusy(false);
+    return;
+  }
+
   await ensureRankedJobsLoaded();
 
   const continuation = parseContinuationIntent(message);
@@ -1986,7 +2162,8 @@ async function sendChat(message) {
     } else if (intent === "navigate" && navigateUrl) {
       await handleNavigate(navigateUrl, false);
     } else if (intent === "apply") {
-      const result = await handleEasyApplyFlow(null, currentTaskConfig?.applyMode || "review");
+      const mode = currentTaskConfig?.applyMode || "review";
+      const result = await handleEasyApplyFlow(null, mode);
       const meta = await getCurrentJobMeta();
       if (meta.title)   lastApplyJobTitle   = meta.title;
       if (meta.company) lastApplyJobCompany = meta.company;
@@ -1996,6 +2173,8 @@ async function sendChat(message) {
         addMessage("assistant", "Application submitted.");
       } else if (result.reason === "review_mode_stop") {
         addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
+      } else if (result.reason === "required_field_empty" && result.fields?.length > 0) {
+        promptForFieldAnswers(result, mode);
       } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
         addMessage("system", formatEasyApplyStopMessage(result));
       }
