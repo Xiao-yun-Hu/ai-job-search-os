@@ -795,11 +795,18 @@ async function detectModalState() {
         // would cause false-positive "already open" detection.
         const interopOutlet = document.querySelector('#interop-outlet');
         const shadowRoot = interopOutlet?.shadowRoot;
-        const modal = shadowRoot
-          ? (shadowRoot.querySelector('.jobs-easy-apply-content') ||
-             shadowRoot.querySelector('[aria-labelledby*="easy-apply"], [aria-label*="Easy Apply"]') ||
-             shadowRoot.querySelector('[role="dialog"]'))
-          : null;
+        // LinkedIn's current build renders the Easy Apply modal directly in the
+        // document as `.jobs-easy-apply-modal[role="dialog"]` — #interop-outlet/shadow
+        // DOM no longer exists. Keep the shadow lookup as a legacy fallback, but the
+        // class-scoped document query is the primary path and avoids matching the
+        // chat overlay's role="dialog" bubbles.
+        const modal = (shadowRoot && (
+            shadowRoot.querySelector('.jobs-easy-apply-content') ||
+            shadowRoot.querySelector('[aria-labelledby*="easy-apply"], [aria-label*="Easy Apply"]') ||
+            shadowRoot.querySelector('[role="dialog"]')
+          )) ||
+          document.querySelector('.jobs-easy-apply-modal[role="dialog"], .jobs-easy-apply-content') ||
+          null;
         if (!modal) return "closed";
 
         // Extra guard: verify this is actually an Easy Apply modal, not some other dialog
@@ -858,11 +865,16 @@ async function handleModalState(state) {
         // also has role="dialog" and would cause false-positive matches.
         const interopOutlet = document.querySelector('#interop-outlet');
         const shadowRoot = interopOutlet?.shadowRoot;
-        const modal = shadowRoot
-          ? (shadowRoot.querySelector('.jobs-easy-apply-content') ||
-             shadowRoot.querySelector('[aria-labelledby*="easy-apply"], [aria-label*="Easy Apply"]') ||
-             shadowRoot.querySelector('[role="dialog"]'))
-          : null;
+        // See detectModalState: LinkedIn now renders the Easy Apply modal directly
+        // in the document as `.jobs-easy-apply-modal[role="dialog"]`, not inside
+        // #interop-outlet's shadow DOM. Shadow lookup kept as legacy fallback.
+        const modal = (shadowRoot && (
+            shadowRoot.querySelector('.jobs-easy-apply-content') ||
+            shadowRoot.querySelector('[aria-labelledby*="easy-apply"], [aria-label*="Easy Apply"]') ||
+            shadowRoot.querySelector('[role="dialog"]')
+          )) ||
+          document.querySelector('.jobs-easy-apply-modal[role="dialog"], .jobs-easy-apply-content') ||
+          null;
         if (!modal) return { advanced: false, reason: "modal_closed" };
 
         // LinkedIn often disables the forward button via aria-disabled="true" with no
