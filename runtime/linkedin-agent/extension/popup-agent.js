@@ -536,6 +536,14 @@ function handleEmptyRanking() {
   addMessage("system", "No jobs met the ranking criteria. I kept the previous saved ranking unchanged.");
 }
 
+function formatEasyApplyStopMessage(result) {
+  if (result.fields?.length > 0) {
+    return `Easy Apply stopped: ${result.reason} on the "${result.finalState}" step. ` +
+      `Please fill in manually: ${result.fields.join(", ")} — then ask me to continue.`;
+  }
+  return `Easy Apply stopped: ${result.reason}`;
+}
+
 function getRankedJobs() {
   return Array.isArray(currentTaskConfig?.rankedJobs) ? currentTaskConfig.rankedJobs : [];
 }
@@ -602,7 +610,7 @@ async function handleCurrentPageApply(message) {
     return;
   }
   if (result.reason && !["external_apply_opened"].includes(result.reason)) {
-    addMessage("system", `Easy Apply stopped: ${result.reason}`);
+    addMessage("system", formatEasyApplyStopMessage(result));
   }
 }
 
@@ -853,33 +861,63 @@ async function handleModalState(state) {
           : null;
         if (!modal) return { advanced: false, reason: "modal_closed" };
 
+        // LinkedIn often disables the forward button via aria-disabled="true" with no
+        // `disabled` attribute — clicking it is a silent no-op that previously made
+        // the state machine think it had advanced when nothing actually changed.
+        function isButtonDisabled(b) {
+          return !!(b.disabled || b.getAttribute('aria-disabled') === 'true');
+        }
+
         function clickNext() {
           // Try aria-label selectors first (LinkedIn uses "Continue to next step", "Review your application", etc.)
           const byAriaLabel = modal.querySelector(
             'button[aria-label*="Continue"], button[aria-label*="Next step"], button[aria-label*="Review your"], button[aria-label="Next"]'
           );
-          if (byAriaLabel && !byAriaLabel.disabled) { byAriaLabel.click(); return true; }
+          if (byAriaLabel && !isButtonDisabled(byAriaLabel)) { byAriaLabel.click(); return true; }
 
           // Text-content fallback — partial match, not exact (handles "Next", "Continue", "Continue to next step")
           const byText = Array.from(modal.querySelectorAll('button')).find(b => {
             const text = (b.textContent || '').trim().toLowerCase();
-            return !b.disabled && (text === 'next' || text === 'continue' || text === 'review' ||
+            return !isButtonDisabled(b) && (text === 'next' || text === 'continue' || text === 'review' ||
               text.startsWith('next') || text.startsWith('continue') || text.startsWith('review'));
           });
           if (byText) { byText.click(); return true; }
 
           // Last-resort: primary action button in the modal footer (LinkedIn always puts the forward button last)
           const allBtns = Array.from(modal.querySelectorAll('footer button, .jobs-easy-apply-footer button, .artdeco-modal__actionbar button'));
-          const primaryBtn = allBtns.reverse().find(b => !b.disabled &&
+          const primaryBtn = allBtns.reverse().find(b => !isButtonDisabled(b) &&
             !/(dismiss|close|back|cancel|discard)/i.test(b.textContent + (b.getAttribute('aria-label') || '')));
           if (primaryBtn) { primaryBtn.click(); return true; }
 
           return false;
         }
 
-        function hasEmptyRequiredFields() {
-          const required = Array.from(modal.querySelectorAll('input[required], select[required], textarea[required]'));
-          return required.some((element) => !(element.value || '').trim());
+        // Returns a list of human-readable labels for required/invalid fields that
+        // are still empty or unanswered, so we can tell the user exactly what's
+        // blocking progress instead of just "stuck".
+        function getEmptyRequiredFieldLabels() {
+          const fields = Array.from(modal.querySelectorAll(
+            'input[required], select[required], textarea[required], [aria-required="true"], [aria-invalid="true"]'
+          ));
+          const labelFor = (element) => {
+            const labelEl = element.id ? modal.querySelector(`label[for="${element.id}"]`) : null;
+            return (labelEl?.textContent || element.getAttribute('aria-label') || element.getAttribute('placeholder') || element.name || element.id || 'unknown field')
+              .replace(/\s+/g, ' ').trim();
+          };
+          const isEmpty = (element) => {
+            if (element.tagName === 'SELECT') {
+              const val = (element.value || '').trim().toLowerCase();
+              return !val || val.includes('select an option') || val === 'select';
+            }
+            if (element.type === 'radio' || element.type === 'checkbox') {
+              const fs = element.closest('fieldset');
+              return fs ? !fs.querySelector('input:checked') : !element.checked;
+            }
+            return !(element.value || '').trim();
+          };
+          const empty = fields.filter(isEmpty);
+          // Dedupe by label (radio/checkbox groups produce one entry per option)
+          return [...new Set(empty.map(labelFor))];
         }
 
         // Fill numeric "years of experience" / skill-level questions with a safe default.
@@ -979,8 +1017,10 @@ async function handleModalState(state) {
 
         if (modalState === "contact_info") {
           await fillLocationField();
-          if (hasEmptyRequiredFields()) return { advanced: false, reason: "required_field_empty" };
-          return clickNext() ? { advanced: true } : { advanced: false, reason: "next_button_not_found" };
+          const emptyFields = getEmptyRequiredFieldLabels();
+          if (emptyFields.length > 0) return { advanced: false, reason: "required_field_empty", fields: emptyFields };
+          if (clickNext()) return { advanced: true };
+          return { advanced: false, reason: "next_button_not_found", fields: getEmptyRequiredFieldLabels() };
         }
 
         if (modalState === "resume") {
@@ -993,8 +1033,8 @@ async function handleModalState(state) {
           const radio = firstResume.querySelector('input[type="radio"]');
           if (radio) { radio.click(); }
           else { firstResume.click(); }
-          const advanced = clickNext();
-          return advanced ? { advanced: true } : { advanced: false, reason: "next_button_not_found" };
+          if (clickNext()) return { advanced: true };
+          return { advanced: false, reason: "next_button_not_found", fields: getEmptyRequiredFieldLabels() };
         }
 
         if (modalState === "screening" || modalState === "additional_questions") {
@@ -1025,8 +1065,10 @@ async function handleModalState(state) {
           // Handle yes/no radio groups
           answerSimpleRadios();
 
-          const advanced = clickNext();
-          return advanced ? { advanced: true } : { advanced: false, reason: "next_button_not_found" };
+          const emptyFields = getEmptyRequiredFieldLabels();
+          if (emptyFields.length > 0) return { advanced: false, reason: "required_field_empty", fields: emptyFields };
+          if (clickNext()) return { advanced: true };
+          return { advanced: false, reason: "next_button_not_found", fields: getEmptyRequiredFieldLabels() };
         }
 
         if (modalState === "unknown") {
@@ -1045,12 +1087,13 @@ async function handleModalState(state) {
           fillSelectDropdowns();
           answerSimpleRadios();
 
-          if (hasEmptyRequiredFields()) {
-            return { advanced: false, reason: "required_field_empty" };
+          const emptyFields = getEmptyRequiredFieldLabels();
+          if (emptyFields.length > 0) {
+            return { advanced: false, reason: "required_field_empty", fields: emptyFields };
           }
 
           const advanced = clickNext();
-          return advanced ? { advanced: true } : { advanced: false, reason: "unknown_modal_no_forward_button" };
+          return advanced ? { advanced: true } : { advanced: false, reason: "unknown_modal_no_forward_button", fields: getEmptyRequiredFieldLabels() };
         }
 
         return { advanced: false, reason: "unhandled_state" };
@@ -1205,7 +1248,7 @@ async function handleEasyApplyFlow(jobUrl, mode = "review") {
 
     const result = await handleModalState(state);
     if (!result.advanced) {
-      return { status: "stopped", finalState: state, reason: result.reason, transitions };
+      return { status: "stopped", finalState: state, reason: result.reason, fields: result.fields, transitions };
     }
 
     addMessage("system", `Completed ${state.replace(/_/g, " ")}. Moving to the next step...`);
@@ -1540,7 +1583,7 @@ async function handleNavigate(url, thenApply = false, options = {}) {
       } else if (result.reason === "review_mode_stop") {
         addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
       } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
-        addMessage("system", `Easy Apply stopped: ${result.reason}`);
+        addMessage("system", formatEasyApplyStopMessage(result));
       }
     }
 
@@ -1874,7 +1917,7 @@ async function sendChat(message) {
       if (result.reason === "review_mode_stop") {
         addMessage("assistant", "Application is ready for review. Please verify it before submitting.");
       } else if (result.reason && !["external_apply_opened", "openSDUI_apply_redirect"].includes(result.reason)) {
-        addMessage("system", `Easy Apply stopped: ${result.reason}`);
+        addMessage("system", formatEasyApplyStopMessage(result));
       }
     } else if (intent === "analyze") {
       await handleAnalyze();
